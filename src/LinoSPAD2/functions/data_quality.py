@@ -21,6 +21,20 @@ functions:
     given pixel and plot them against the cycle number. For clearer
     picture how the signal oscilates, also plot a moving average in a
     window of 100 cycles. The plot is then saved.
+
+    * get_time_ratios - unpacks data for all files in given folder, calculates
+    the data collection time as the number of cycles in one file * the 
+    length of one cycle,  calculates the total acquisition time as the 
+    difference between the modification times of two subsequent files, 
+    calculates the ratios of these times and calculates the average with 
+    error.
+ 
+    * save_file_time - saves the modification and creation times of data 
+    files into a feather file.
+    
+    * load_data_from_feather - loads the modification and creation time 
+    of data files from the feather file.
+
 """
 
 import glob
@@ -30,6 +44,10 @@ import sys
 import numpy as np
 from matplotlib import pyplot as plt
 from tqdm import tqdm
+import pandas as pd
+import pyarrow.feather as feather
+from datetime import datetime
+
 
 from LinoSPAD2.functions import unpack as f_up
 from LinoSPAD2.functions import utils
@@ -338,3 +356,153 @@ def pixel_population_by_cycle(
         + os.path.splitext(files_all[-1])[0]
     )
     plt.savefig(f"{plot_name}_{pix_to_plot}.png")
+
+
+def get_time_ratios(
+    path: str,
+    daughterboard_number: str,
+    motherboard_number: str,
+    firmware_version: str,
+    timestamps: int,
+    include_offset: bool = True,
+    apply_calibration: bool = True,
+        
+):
+    """
+    Calculate the ratio of time of actual data collection and the time it 
+    takes to create and save the files.
+
+    Parameters
+    ----------
+    path : str
+        Path to the binary data file.
+    daughterboard_number : str
+        LinoSPAD2 daughterboard number.
+    motherboard_number : str
+        LinoSPAD2 motherboard (FPGA) number.
+    firmware_version : str
+        LinoSPAD2 firmware version. Either '2212s' (skip) or '2212b' (block).
+    timestamps : int, optional
+        Number of timestamps per cycle per TDC per acquisition cycle.
+    include_offset : bool, optional
+        Switch for applying offset calibration. The default is True.
+    apply_calibration : bool, optional
+        Switch for applying TDC and offset calibration. If set to 'True'
+        while include_offset is set to 'False', only the TDC
+        calibration is applied. The default is True.
+    
+    """
+    
+
+    os.chdir(path)
+
+    files = glob.glob("*.dat*")
+    files.sort(key=os.path.getmtime)
+
+
+    timestamps_only = []
+    number_of_cycles = []
+    collecting_times = []
+
+    tmsp_maxes = []
+
+    for i in range(len(files) - 1):
+        unpacked_data = f_up.unpack_binary_data(
+            files[i],
+            daughterboard_number,
+            motherboard_number,
+            firmware_version,
+            timestamps,
+            include_offset,
+            apply_calibration,
+        )
+
+      
+        timestamps_only = unpacked_data.T[1]
+
+        tmsp_maxes.append(np.max(timestamps_only))
+
+        number_of_cycles.append(len(np.where(unpacked_data[0].T[0] == -2)[0]))
+
+        collecting_times.append(os.path.getmtime(files[i + 1]) - os.path.getmtime(files[i]))
+
+
+    tp_max = max(tmsp_maxes) / 1e12
+
+    ratios = [
+        number_of_cycles[i] * tp_max / collecting_times[i]
+        for i in range(len(collecting_times))
+    ]
+
+    ratio_average = np.mean(ratios)
+    error = np.std(ratios) / np.sqrt(len(ratios))
+
+    intercycle_time = [
+        collecting_times[i] - number_of_cycles[i] * tp_max
+        for i in range(len(collecting_times))
+    ]
+
+    print("Number of cycles:", number_of_cycles[1])
+    print("Ratio average: ", ratio_average)
+    print("Ratio error: ", error)
+
+
+def save_file_times(path):
+    """
+    Save the creation and modification times of data files into a .feather file.
+
+    Parameters
+    ----------
+    
+    path : str
+        Path to the data files.
+    
+    """
+    file_list = glob.glob(os.path.join(path, "*.dat*"))
+    files_data = []
+
+    file_list.sort()
+    
+    first_file_name = os.path.basename(file_list[0])[:-4]  
+    last_file_name = os.path.basename(file_list[-1])[:-4]
+   
+    for file_path in file_list:
+        file_name = os.path.basename(file_path)
+        creation_time = os.path.getctime(file_path)
+        modification_time = os.path.getmtime(file_path)
+        files_data.append(
+            (
+                file_name,
+                datetime.fromtimestamp(creation_time),
+                datetime.fromtimestamp(modification_time),
+            )
+        )
+
+    df = pd.DataFrame(
+        files_data, columns=["File Name", "Creation Time", "Modification Time"]
+    )
+
+    feather_filename = f"{first_file_name}_-_{last_file_name}.feather"
+    feather.write_feather(df, os.path.join(path, feather_filename))
+
+    return df
+
+
+def load_data_from_feather(path):
+    """
+    Loads the creation and modification time from feather file.
+
+    Parameters
+    ----------
+    
+    path : str
+        Path to the data files.
+        
+    """
+    feather_files = glob.glob(os.path.join(path, "*.feather"))
+    if feather_files:
+        df_loaded = feather.read_feather(feather_files[0])
+        return df_loaded
+    else:
+        print("No feather files found.")
+        return None
