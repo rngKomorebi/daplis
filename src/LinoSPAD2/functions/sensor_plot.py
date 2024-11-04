@@ -39,6 +39,7 @@ from LinoSPAD2.functions import unpack as f_up
 from LinoSPAD2.functions import utils
 
 
+# TODO inc offset and apply calibration - remove
 def collect_data_and_apply_mask(
     files: List[str],
     daughterboard_number: str,
@@ -336,8 +337,6 @@ def plot_sensor_population(
     style: str = "-o",
     show_fig: bool = False,
     app_mask: bool = True,
-    include_offset: bool = False,
-    apply_calibration: bool = True,
     color: str = "rebeccapurple",
     correct_pix_address: bool = False,
     fit_peaks: bool = False,
@@ -379,12 +378,6 @@ def plot_sensor_population(
     app_mask : bool, optional
         Switch for applying the mask on warm/hot pixels. The default is
         True.
-    include_offset : bool, optional
-        Switch for applying offset calibration. The default is True.
-    apply_calibration : bool, optional
-        Switch for applying TDC and offset calibration. If set to 'True'
-        while include_offset is set to 'False', only the TDC calibration is
-        applied. The default is True.
     color : str, optional
         Color for the plot. The default is 'rebeccapurple'.
     correct_pix_address : bool, optional
@@ -433,7 +426,6 @@ def plot_sensor_population(
     >>> firmware_version="2212s",
     >>> timestamps = 1000,
     >>> show_fig = True,
-    >>> include_offset = False,
     >>> correct_pix_address = True,
     >>> fit_peaks = True,
     >>> single_file = True,
@@ -483,13 +475,13 @@ def plot_sensor_population(
             motherboard_number,
             firmware_version,
             timestamps,
-            include_offset,
-            apply_calibration,
             app_mask,
             absolute_timestamps,
             save_to_file=False,
             correct_pix_address=correct_pix_address,
             calculate_rates=True,
+            include_offset=False,
+            apply_calibration=False,
         )
     else:
         timestamps_per_pixel = collect_data_and_apply_mask(
@@ -504,6 +496,8 @@ def plot_sensor_population(
             absolute_timestamps,
             save_to_file=False,
             correct_pix_address=correct_pix_address,
+            include_offset=False,
+            apply_calibration=False,
         )
 
     # Plotting
@@ -973,3 +967,6 @@ def plot_sensor_population_full_sensor(
     )
     if pickle_fig:
         pickle.dump(fig, open(f"{plot_name}.pickle", "wb"))
+
+
+# TODO add unpickle

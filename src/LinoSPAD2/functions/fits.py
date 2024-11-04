@@ -30,6 +30,7 @@ functions:
 import glob
 import os
 import pickle
+import re
 from typing import List
 
 import numpy as np
@@ -43,6 +44,7 @@ from scipy import signal as sg
 from LinoSPAD2.functions import utils
 
 
+# TODO
 def fit_with_gaussian(
     path: str,
     pixels: List[int] | List[List[int]],
@@ -280,8 +282,8 @@ def fit_with_gaussian(
                     pe2=format(perr[1], ".0f"),
                     bkg=format(par[3], ".0f"),
                     bkg_er=format(perr[3], ".0f"),
-                    contrast=format(contrast, ".2f"),
-                    contrast_error=format(contrast_error, ".2f"),
+                    contrast=format(contrast, ".1f"),
+                    contrast_error=format(contrast_error, ".1f"),
                 ),
             )
             plt.legend(loc="best")
@@ -396,9 +398,6 @@ def fit_with_gaussian_all(
 
     # Handle the input pixel list
     pixels_left, pixels_right = utils.pixel_list_transform(pixels)
-
-    files = sorted(glob.glob("*.dat*"))
-    file_name = files[0][:-4] + "-" + files[-1][:-4]
 
     # If name of the '.feather' file is not provided, get it based on
     # the '.dat' files in the folder
@@ -1080,7 +1079,7 @@ def fit_with_gaussian_fancy(
                     color="darkorange",
                 )
             ax1.set_ylabel("Counts (-)")
-            ax1.yaxis.set_label_coords(-0.105, 0.5)
+            # ax1.yaxis.set_label_coords(-0.105, 0.5)
             ax1.set_xticks([], [])
             ax1.legend()
             ax1.set_xlim(
@@ -1203,7 +1202,8 @@ def fit_with_gaussian_fancy(
 def unpickle_fit(fit_pickle_file: str) -> dict:
     """Unpickle a saved figure and return plot data.
 
-    Load a pickled figure, extract and return the histogram and fit data.
+    Load a pickled figure, extract and return the histogram and fit
+    data.
 
     Parameters
     ----------
@@ -1212,10 +1212,16 @@ def unpickle_fit(fit_pickle_file: str) -> dict:
 
     Returns
     -------
-    dict
-        A dictionary with keys "Histogram" and "Fit", where each value
-        is a tuple containing the x and y data of the corresponding line
-        plot.
+    tuple
+        A tuple containing:
+        - fig (matplotlib.figure.Figure): The unpickled figure object.
+        - plot_data (dict): A dictionary with keys "Histogram" and
+        "Fit_{i}" (for i >= 1), where each value is a tuple of x and y
+        data for the corresponding line plot.
+
+        - params_df (pandas.DataFrame): A DataFrame containing fit
+        parameters extracted from the legend. Columns represent each
+        fit.
 
     Raises
     ------
@@ -1242,4 +1248,49 @@ def unpickle_fit(fit_pickle_file: str) -> dict:
         else:
             plot_data[f"Fit_{i}"] = (x, y)
 
-    return plot_data
+    # Extract the legend
+    legend = ax.get_legend()
+
+    legend_labels = [text.get_text() for text in legend.get_texts()]
+
+    # Pattern for the fit parameters: sigma, mu, C
+    pattern = (
+        r"σ=\(([\d.-]+)±([\d.-]+)\) ps\n"
+        r"μ=\(([\d.-]+)±([\d.-]+)\) ps\n"
+        r"C=\(([\d.-]+)±([\d.-]+)\) %"
+    )
+
+    # Prepare a dataframe for the fit parameters
+    params_df = pd.DataFrame()
+
+    params_df["Fit parameter"] = [
+        "center (ps)",
+        "center_error (ps)",
+        "sigma (ps)",
+        "sigma_error (ps)",
+        "contrast (%)",
+        "contrast_error (%)",
+    ]
+
+    # Go over labels and collect the parameters
+    for label in legend_labels:
+        # Search for the fit parameters in the legend label
+        match = re.search(pattern, label)
+
+        if match:
+            # Extract the fit parameters and their uncertainties
+            sigma, sigma_err = match.group(1), match.group(2)
+            mu, mu_err = match.group(3), match.group(4)
+            C, C_err = match.group(5), match.group(6)
+
+            # Fill the dataframe
+            params_df[f"Peak at {mu} ps"] = [
+                mu,
+                mu_err,
+                sigma,
+                sigma_err,
+                C,
+                C_err,
+            ]
+
+    return fig, plot_data, params_df

@@ -117,7 +117,7 @@ def calculate_differences_2212(
 def calculate_differences_2212_fast(
     data: ndarray,
     pixels: List[int] | List[List[int]],
-    pix_coor,
+    pix_coor: ndarray,
     delta_window: float = 50e3,
     cycle_length: float = 4e9,
 ):
@@ -134,7 +134,7 @@ def calculate_differences_2212_fast(
         List of pixel numbers for which the timestamp differences should
         be calculated or list of two lists with pixel numbers for peak
         vs. peak calculations.
-    pix_coor : array-like
+    pix_coor : ndarray
         Array for transforming the pixel address in terms of TDC (0 to 3)
         to pixel number in terms of half of the sensor (0 to 255).
     delta_window : float, optional
