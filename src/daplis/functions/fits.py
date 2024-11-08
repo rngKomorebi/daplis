@@ -35,13 +35,12 @@ from typing import List
 
 import numpy as np
 import pandas as pd
+from daplis.functions import utils
 from lmfit.models import GaussianModel, LinearModel
 from matplotlib import pyplot as plt
 from pandas import DataFrame
 from pyarrow import feather as ft
 from scipy import signal as sg
-
-from LinoSPAD2.functions import utils
 
 
 # TODO
@@ -68,7 +67,8 @@ def fit_with_gaussian(
     Parameters
     ----------
     path : str
-        Path to the folder with '.dat' data files.
+        Path to the folder with '.dat' data files or where the
+        '.feather' file with timestamp differences is located.
     pixels : List[int] | List[List[int]]
         List of pixel numbers for which the timestamp differences should
         be calculated and saved or list of two lists with pixel numbers
@@ -150,31 +150,22 @@ def fit_with_gaussian(
     if return_fit_params:
         fit_params = {}
 
-    data = ft.read_feather(
-        f"{feather_file_name}",
-    ).dropna()
+    data = ft.read_feather(f"{feather_file_name}")
 
     for pix_left in pixels_left:
         for pix_right in pixels_right:
-
-            data_to_plot = data[f"{pix_left},{pix_right}"]
+            data_to_plot = data[f"{pix_left},{pix_right}"].dropna()
 
             # Check if there any finite values
             if not np.any(~np.isnan(data_to_plot)):
-                raise ValueError(
-                    "\nNo data for the requested pixel pair available"
-                )
+                raise ValueError("\nNo data for the requested pixel pair available")
 
             data_to_plot = data_to_plot.dropna()
             data_to_plot = np.array(data_to_plot)
 
             # Use the given window for trimming the data for fitting
-            data_to_plot = np.delete(
-                data_to_plot, np.argwhere(data_to_plot < -window)
-            )
-            data_to_plot = np.delete(
-                data_to_plot, np.argwhere(data_to_plot > window)
-            )
+            data_to_plot = np.delete(data_to_plot, np.argwhere(data_to_plot < -window))
+            data_to_plot = np.delete(data_to_plot, np.argwhere(data_to_plot > window))
 
             os.chdir(path)
             plt.rcParams.update({"font.size": 27})
@@ -338,7 +329,8 @@ def fit_with_gaussian_all(
     Parameters
     ----------
     path : str
-        Path to the folder with '.dat' data files.
+        Path to the folder with '.dat' data files or where the
+        '.feather' file with timestamp differences is located.
     pixels : List[int] | List[List[int]]
         List of pixel numbers for which the timestamp differences should
         be calculated and saved or list of two lists with pixel numbers
@@ -408,12 +400,13 @@ def fit_with_gaussian_all(
         files = sorted(glob.glob("*.dat*"))
         file_name = files[0][:-4] + "-" + files[-1][:-4]
 
-    try:
-        os.chdir("delta_ts_data")
-    except FileNotFoundError:
-        raise ("\nFile with data not found")
+        try:
+            os.chdir("delta_ts_data")
+        except FileNotFoundError:
+            raise ("\nFile with data not found")
 
-    feather_file_name = glob.glob(f"*{file_name}.feather*")[0]
+        feather_file_name = glob.glob(f"*{file_name}.feather*")[0]
+
     if not feather_file_name:
         raise FileNotFoundError("\nFile with data not found")
 
@@ -422,31 +415,25 @@ def fit_with_gaussian_all(
 
     data = ft.read_feather(
         f"{feather_file_name}",
-    ).dropna()
+    )
 
     for pix_left in pixels_left:
         for pix_right in pixels_right:
 
-            data_to_plot = data[f"{pix_left},{pix_right}"]
+            data_to_plot = data[f"{pix_left},{pix_right}"].dropna()
 
             # Check if there any finite values
             if not np.any(~np.isnan(data_to_plot)):
-                raise ValueError(
-                    "\nNo data for the requested pixel pair available"
-                )
+                raise ValueError("\nNo data for the requested pixel pair available")
 
             data_to_plot = data_to_plot.dropna()
             data_to_plot = np.array(data_to_plot)
 
             # Use the given window for trimming the data for fitting
-            data_to_plot = np.delete(
-                data_to_plot, np.argwhere(data_to_plot < -window)
-            )
-            data_to_plot = np.delete(
-                data_to_plot, np.argwhere(data_to_plot > window)
-            )
+            data_to_plot = np.delete(data_to_plot, np.argwhere(data_to_plot < -window))
+            data_to_plot = np.delete(data_to_plot, np.argwhere(data_to_plot > window))
 
-            os.chdir("..")
+            os.chdir(path)
             plt.rcParams.update({"font.size": 27})
 
             # Bins must be in units of 17.857 ps (2500/140)
@@ -462,9 +449,7 @@ def fit_with_gaussian_all(
 
             bin_c = (b - (b[1] - b[0]) / 2)[1:]
 
-            peak_pos = sg.find_peaks(
-                n, height=np.median(n) * threshold_multiplier
-            )[0]
+            peak_pos = sg.find_peaks(n, height=np.median(n) * threshold_multiplier)[0]
 
             fig = plt.figure(figsize=(16, 10))
             plt.xlabel(r"$\Delta$t (ps)")
@@ -538,16 +523,12 @@ def fit_with_gaussian_all(
 
                 counts, bin_edges = np.histogram(data_to_fit, bins)
 
-                bin_centers = (bin_edges - (bin_edges[1] - bin_edges[0]) / 2)[
-                    1:
-                ]
+                bin_centers = (bin_edges - (bin_edges[1] - bin_edges[0]) / 2)[1:]
 
                 par, pcov = utils.fit_gaussian(bin_centers, counts)
 
                 # Interpolate for smoother fit plot
-                to_fit_n1 = utils.gaussian(
-                    bin_centers, par[0], par[1], par[2], par[3]
-                )
+                to_fit_n1 = utils.gaussian(bin_centers, par[0], par[1], par[2], par[3])
 
                 perr = np.sqrt(np.diag(pcov))
 
@@ -624,14 +605,13 @@ def fit_with_gaussian_all(
                 os.makedirs("results/fits")
                 os.chdir("results/fits")
 
-            # fig.tight_layout()  # for perfect spacing between the plots
-
-            plt.savefig(f"{file_name}_pixels_{pix_left},{pix_right}_fit.png")
+            plt.savefig(f"{file_name}_pixels_{pix_left},{pix_right}_all_fit.png")
 
             # Pickle the figure if requested
             if pickle_figure:
                 with open(
-                    f"{file_name}_pixels_{pix_left},{pix_right}_fit.pkl", "wb"
+                    f"{file_name}_pixels_{pix_left},{pix_right}_all_fit.pkl",
+                    "wb",
                 ) as f:
                     pickle.dump(fig, f)
 
@@ -796,9 +776,7 @@ def fit_with_gaussian_full_sensor(
 
     perr = np.sqrt(np.diag(pcov))
     contrast = par[0] / par[3] * 100
-    contrast_error = utils.error_propagation_division(
-        par[0], perr[0], par[3], perr[3]
-    )
+    contrast_error = utils.error_propagation_division(par[0], perr[0], par[3], perr[3])
 
     # Contrast error in %
     contrast_error = contrast_error * 100
@@ -835,8 +813,7 @@ def fit_with_gaussian_full_sensor(
     plt.legend(loc="best")
     if title_on is True:
         plt.title(
-            "Gaussian fit of delta t histogram, pixels "
-            f"{pix_pair[0]}, {pix_pair[1]}"
+            "Gaussian fit of delta t histogram, pixels " f"{pix_pair[0]}, {pix_pair[1]}"
         )
 
     try:
@@ -847,9 +824,7 @@ def fit_with_gaussian_full_sensor(
 
     fig.tight_layout()  # for perfect spacing between the plots
 
-    plt.savefig(
-        f"{feather_file_name}_pixels_{pix_pair[0]},{pix_pair[1]}_fit.png"
-    )
+    plt.savefig(f"{feather_file_name}_pixels_{pix_pair[0]},{pix_pair[1]}_fit.png")
 
     plt.pause(0.1)
     os.chdir("../..")
@@ -878,7 +853,8 @@ def fit_with_gaussian_fancy(
     Parameters
     ----------
     path : str
-        Path to the folder with '.dat' data files.
+        Path to the folder with '.dat' data files or where the
+        '.feather' file with timestamp differences is located.
     pixels : List[int] | List[List[int]]
         List of pixel numbers for which the timestamp differences should
         be calculated and saved or list of two lists with pixel numbers
@@ -930,18 +906,22 @@ def fit_with_gaussian_fancy(
 
     # If name of the '.feather' file is not provided, get it based on
     # the '.dat' files in the folder
-    if ft_file is None:
+    if ft_file is not None:
+        file_name = ft_file.split(".")[0]
+        feather_file_name = ft_file
+    else:
         files = sorted(glob.glob("*.dat*"))
         file_name = files[0][:-4] + "-" + files[-1][:-4]
-        ft_file = f"{file_name}.feather"
 
-    try:
-        os.chdir("delta_ts_data")
-    except FileNotFoundError:
-        raise FileNotFoundError(
-            "Folder 'delta_ts_data' with the "
-            "timestamps differences was not found."
-        )
+        try:
+            os.chdir("delta_ts_data")
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                "Folder 'delta_ts_data' with the "
+                "timestamps differences was not found."
+            )
+
+        feather_file_name = glob.glob(f"*{file_name}.feather*")[0]
 
     # # Select the column of delta ts for the requested pair of pixels
     # if pix_pair is not None:
@@ -958,15 +938,18 @@ def fit_with_gaussian_fancy(
     #     data = ft.read_feather(ft_file)
     #     pix_pair = [int(x) for x in data.columns[0].split(",")]
 
-    data = ft.read_feather(ft_file).dropna()
+    if not feather_file_name:
+        raise FileNotFoundError("\nFile with data not found")
 
     if return_fit_params:
         fit_params = {}
 
+    data = ft.read_feather(f"{feather_file_name}")
+
     for pix_left in pixels_left:
         for pix_right in pixels_right:
 
-            data_to_plot = data[f"{pix_left},{pix_right}"]
+            data_to_plot = data[f"{pix_left},{pix_right}"].dropna()
 
             # Select a window around the signal
             data_signal = data_to_plot[
@@ -982,8 +965,7 @@ def fit_with_gaussian_fancy(
 
             # Select background data for SNR calculation
             data_bckg = data_to_plot[
-                (data_to_plot > range_right)
-                & (data_to_plot < range_right + 10e3)
+                (data_to_plot > range_right) & (data_to_plot < range_right + 10e3)
             ].dropna()
 
             n, _ = np.histogram(data_bckg, bins=200)
@@ -1061,9 +1043,7 @@ def fit_with_gaussian_fancy(
             )
 
             # Data + fit
-            ax1.plot(
-                bin_centers, counts, ".", label="Data", color="rebeccapurple"
-            )
+            ax1.plot(bin_centers, counts, ".", label="Data", color="rebeccapurple")
             if not interpolate_fit:
                 ax1.plot(
                     bin_centers,
@@ -1130,9 +1110,7 @@ def fit_with_gaussian_fancy(
             # Plot the distribution of residuals with a Gaussian fit
             residuals = counts - result.best_fit
             counts_residuals, bins_residuals = np.histogram(residuals, bins=20)
-            bins_residuals_edges = (
-                bins_residuals[:-1] + bins_residuals[1:]
-            ) / 2
+            bins_residuals_edges = (bins_residuals[:-1] + bins_residuals[1:]) / 2
             ax3.plot(
                 counts_residuals,
                 bins_residuals_edges,
@@ -1180,9 +1158,7 @@ def fit_with_gaussian_fancy(
                 os.chdir(os.path.join(path, r"results/fits"))
 
             plot_name = ft_file.split(".")[0]
-            plt.savefig(
-                f"{plot_name}_pixels_{pix_left},{pix_right}_fancy_fit.png"
-            )
+            plt.savefig(f"{plot_name}_pixels_{pix_left},{pix_right}_fancy_fit.png")
 
             # Pickle the figure if requested
             if pickle_figure:
@@ -1194,6 +1170,8 @@ def fit_with_gaussian_fancy(
 
             if return_fit_params:
                 fit_params[f"{pix_left},{pix_right}"] = result.params
+
+    os.chdir("../..")
 
     if return_fit_params:
         return fit_params
@@ -1218,7 +1196,6 @@ def unpickle_fit(fit_pickle_file: str) -> dict:
         - plot_data (dict): A dictionary with keys "Histogram" and
         "Fit_{i}" (for i >= 1), where each value is a tuple of x and y
         data for the corresponding line plot.
-
         - params_df (pandas.DataFrame): A DataFrame containing fit
         parameters extracted from the legend. Columns represent each
         fit.

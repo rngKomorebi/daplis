@@ -1,13 +1,15 @@
-from LinoSPAD2.functions import unpack as f_up
+import glob
 import os
 import sys
-import glob
-import numpy as np
 import time
 from math import ceil
+from zipfile import ZipFile
+
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from zipfile import ZipFile
+
+from daplis.functions import unpack as f_up
 
 
 def compact_share(
@@ -256,5 +258,11 @@ def compact_share(
                 "{path} < < <".format(
                     file=out_file_name,
                     path=path + "\delta_ts_data",
+                )
+            )
+                )
+            )
+                )
+            )
                 )
             )

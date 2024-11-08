@@ -30,13 +30,12 @@ import sys
 from typing import List
 
 import numpy as np
+from daplis.functions import unpack as f_up
+from daplis.functions import utils
 from matplotlib import pyplot as plt
 from scipy.optimize import curve_fit
 from scipy.signal import find_peaks
 from tqdm import tqdm
-
-from LinoSPAD2.functions import unpack as f_up
-from LinoSPAD2.functions import utils
 
 
 # TODO inc offset and apply calibration - remove
@@ -46,8 +45,6 @@ def collect_data_and_apply_mask(
     motherboard_number: str,
     firmware_version: str,
     timestamps: int,
-    include_offset: bool,
-    apply_calibration: bool = True,
     app_mask: bool = True,
     absolute_timestamps: bool = False,
     save_to_file: bool = False,
@@ -72,10 +69,6 @@ def collect_data_and_apply_mask(
         LinoSPAD2 firmware version.
     timestamps : int
         Number of timestamps per pixel per acquisition cycle.
-    include_offset : bool
-        Switch for applying offset calibration.
-    apply_calibration : bool
-        Switch for applying TDC and offset calibration.
     app_mask : bool, optional
         Switch for applying the mask on warm/hot pixels. Default is True.
     absolute_timestamps : bool, optional
@@ -115,8 +108,8 @@ def collect_data_and_apply_mask(
                 motherboard_number,
                 firmware_version,
                 timestamps,
-                include_offset,
-                apply_calibration,
+                include_offset=False,
+                apply_calibration=False,
             )
         else:
             data, _ = f_up.unpack_binary_data_with_absolute_timestamps(
@@ -125,8 +118,8 @@ def collect_data_and_apply_mask(
                 motherboard_number,
                 firmware_version,
                 timestamps,
-                include_offset,
-                apply_calibration,
+                include_offset=False,
+                apply_calibration=False,
             )
         for i in range(256):
             tdc, pix = np.argwhere(pix_coor == i)[0]
@@ -149,12 +142,7 @@ def collect_data_and_apply_mask(
     acq_window_length = np.max(data[:].T[1]) * 1e-12
     number_of_cycles = len(np.where(data[0].T[0] == -2)[0])
 
-    rates = (
-        timestamps_per_pixel
-        / acq_window_length
-        / number_of_cycles
-        / len(files)
-    )
+    rates = timestamps_per_pixel / acq_window_length / number_of_cycles / len(files)
 
     if save_to_file:
         files.sort(key=os.path.getmtime)
@@ -184,8 +172,6 @@ def plot_single_pix_hist(
     cycle_length: float = 4e9,
     step: int = 1e6,
     show_fig: bool = False,
-    include_offset: bool = False,
-    apply_calibration: bool = True,
     fit_average: bool = False,
     color: str = "teal",
 ):
@@ -216,12 +202,6 @@ def plot_single_pix_hist(
         default is 1e6.
     show_fig : bool, optional
         Switch for showing the output figure. The default is False.
-    include_offset : bool, optional
-        Switch for applying offset calibration. The default is True.
-    apply_calibration : bool, optional
-        Switch for applying TDC and offset calibration. If set to 'True'
-        while include_offset is set to 'False', only the TDC calibration is
-        applied. The default is True.
     fit_average : int, optional
         Switch for fitting averages of histogram counts in windows of
         +/-10. The default is False.
@@ -266,13 +246,11 @@ def plot_single_pix_hist(
             motherboard_number,
             firmware_version,
             timestamps,
-            include_offset,
-            apply_calibration,
+            include_offset=False,
+            apply_calibration=False,
         )
 
-        bins = np.arange(
-            0, cycle_length, 2500 / 140 * step
-        )  # bin size of 17.867 us
+        bins = np.arange(0, cycle_length, 2500 / 140 * step)  # bin size of 17.867 us
 
         if pixels is None:
             pixels = np.arange(145, 165, 1)
@@ -433,13 +411,9 @@ def plot_sensor_population(
     """
     # parameter type check
     if not isinstance(firmware_version, str):
-        raise TypeError(
-            "'firmware_version' should be a string, '2212b' or '2212s'"
-        )
+        raise TypeError("'firmware_version' should be a string, '2212b' or '2212s'")
     if not isinstance(daughterboard_number, str):
-        raise TypeError(
-            "'daughterboard_number' should be a string, 'NL11' or 'A5'"
-        )
+        raise TypeError("'daughterboard_number' should be a string, 'NL11' or 'A5'")
     if not isinstance(motherboard_number, str):
         raise TypeError("'motherboard_number' should be a string")
     if show_fig:
@@ -480,8 +454,6 @@ def plot_sensor_population(
             save_to_file=False,
             correct_pix_address=correct_pix_address,
             calculate_rates=True,
-            include_offset=False,
-            apply_calibration=False,
         )
     else:
         timestamps_per_pixel = collect_data_and_apply_mask(
@@ -490,14 +462,10 @@ def plot_sensor_population(
             motherboard_number,
             firmware_version,
             timestamps,
-            include_offset,
-            apply_calibration,
             app_mask,
             absolute_timestamps,
             save_to_file=False,
             correct_pix_address=correct_pix_address,
-            include_offset=False,
-            apply_calibration=False,
         )
 
     # Plotting
@@ -519,9 +487,7 @@ def plot_sensor_population(
 
         print("Fitting the peaks with gaussian")
         for peak_index in peaks:
-            x_fit = np.arange(
-                peak_index - fit_width, peak_index + fit_width + 1
-            )
+            x_fit = np.arange(peak_index - fit_width, peak_index + fit_width + 1)
             cut_above_256 = np.where(x_fit >= 256)[0]
             x_fit = np.delete(x_fit, cut_above_256)
             y_fit = timestamps_per_pixel[x_fit]
@@ -546,7 +512,7 @@ def plot_sensor_population(
     except FileNotFoundError:
         os.makedirs("results/sensor_population")
         os.chdir("results/sensor_population")
-    fig.tight_layout()
+    # fig.tight_layout()
     if single_file:
         plt.savefig(f"{plot_name}_single_file.png")
         print(
@@ -558,8 +524,7 @@ def plot_sensor_population(
     else:
         plt.savefig(f"{plot_name}.png")
         print(
-            f"> > > The plot is saved as '{plot_name}.png' "
-            f"in {os.getcwd()} < < <"
+            f"> > > The plot is saved as '{plot_name}.png' " f"in {os.getcwd()} < < <"
         )
         if pickle_fig:
             pickle.dump(fig, open(f"{plot_name}.pickle", "wb"))
@@ -735,8 +700,6 @@ def plot_sensor_population_full_sensor(
     style: str = "-o",
     show_fig: bool = False,
     app_mask: bool = True,
-    include_offset: bool = False,
-    apply_calibration: bool = True,
     color: str = "salmon",
     fit_peaks: bool = False,
     threshold_multiplier: int = 10,
@@ -779,12 +742,6 @@ def plot_sensor_population_full_sensor(
     app_mask : bool, optional
         Switch for applying the mask on warm/hot pixels. The default is
         True.
-    include_offset : bool, optional
-        Switch for applying offset calibration. The default is True.
-    apply_calibration : bool, optional
-        Switch for applying TDC and offset calibration. If set to 'True'
-        while include_offset is set to 'False', only the TDC calibration is
-        applied. The default is True.
     color : str, optional
         Color for the plot. The default is 'salmon'.
     fit_peaks : bool, optional
@@ -823,13 +780,9 @@ def plot_sensor_population_full_sensor(
     """
     # parameter type check
     if not isinstance(firmware_version, str):
-        raise TypeError(
-            "'firmware_version' should be a string, '2212b' or '2212s'"
-        )
+        raise TypeError("'firmware_version' should be a string, '2212b' or '2212s'")
     if not isinstance(daughterboard_number, str):
-        raise TypeError(
-            "'daughterboard_number' should be a string, 'NL11' or 'A5'"
-        )
+        raise TypeError("'daughterboard_number' should be a string, 'NL11' or 'A5'")
     if not isinstance(motherboard_number1, str):
         raise TypeError("'motherboard_number1' should be a string")
     if not isinstance(motherboard_number2, str):
@@ -869,8 +822,6 @@ def plot_sensor_population_full_sensor(
         motherboard_number1,
         firmware_version,
         timestamps,
-        include_offset,
-        apply_calibration,
         app_mask,
         absolute_timestamps,
     )
@@ -896,8 +847,6 @@ def plot_sensor_population_full_sensor(
         motherboard_number2,
         firmware_version,
         timestamps,
-        include_offset,
-        apply_calibration,
         app_mask,
         absolute_timestamps,
     )
@@ -931,9 +880,7 @@ def plot_sensor_population_full_sensor(
         peaks = np.unique(peaks)
 
         for peak_index in tqdm(peaks, desc="Fitting Gaussians"):
-            x_fit = np.arange(
-                peak_index - fit_width, peak_index + fit_width + 1
-            )
+            x_fit = np.arange(peak_index - fit_width, peak_index + fit_width + 1)
             y_fit = valid_per_pixel[x_fit]
             try:
                 params, _ = utils.fit_gaussian(x_fit, y_fit)
@@ -961,12 +908,65 @@ def plot_sensor_population_full_sensor(
         os.chdir("results/sensor_population")
     fig.tight_layout()
     plt.savefig("{}.png".format(plot_name))
-    print(
-        f"> > > The plot is saved as '{plot_name}.png' "
-        f"in {os.getcwd()} < < <"
-    )
+    print(f"> > > The plot is saved as '{plot_name}.png' " f"in {os.getcwd()} < < <")
     if pickle_fig:
         pickle.dump(fig, open(f"{plot_name}.pickle", "wb"))
 
 
-# TODO add unpickle
+def unpickle_plot(plot_pickle_file: str) -> dict:
+    """Unpickle a saved figure and return plot data.
+
+    Load a pickled figure with the sensor population plot, extract and
+    return the plot data.
+
+    Parameters
+    ----------
+    plot_pickle_file : str
+        The absolute path to the pickle file with the sensor population
+        plot.
+
+    Returns
+    -------
+    tuple
+        A tuple containing:
+        - fig (matplotlib.figure.Figure): The unpickled figure object.
+        - plot_data (dict): A dictionary with keys "Histogram" and
+        "Fit_{i}" (for i >= 1), where each value is a tuple of x and y
+        data for the corresponding line plot.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the specified pickle file does not exist, a FileNotFoundError
+        is raised and an error message is printed.
+    """
+    try:
+        with open(plot_pickle_file, "rb") as f:
+            fig = pickle.load(f)
+    except FileNotFoundError as e:
+        print(f" {e}")
+
+    # Pack the data into a dictionary, first is the histogram, others
+    # are the fits
+    plot_data = {}
+
+    # Extract the data; go over lines, stack them into dictionary
+    ax = fig.axes[0]
+    for i, line in enumerate(ax.lines):
+        x, y = line.get_data()
+        if i == 0:
+            plot_data["Plot"] = (x, y)
+        else:
+            plot_data[f"Fit_{i}"] = (x, y)
+
+    # Extract the legend
+    legend = ax.get_legend()
+
+    if legend is not None:
+        legend_labels = [text.get_text() for text in legend.get_texts()]
+
+        legend_labels = "\n".join(legend_labels)
+
+        return fig, plot_data, legend_labels
+    else:
+        return fig, plot_data

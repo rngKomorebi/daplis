@@ -7,7 +7,7 @@ from scipy import signal as sg
 from scipy.optimize import curve_fit
 from tqdm import tqdm
 
-from LinoSPAD2.functions import unpack
+from daplis.functions import unpack
 
 path = "D:/LinoSPAD2/Data/board_A5/FW 2212 block/Spectrometer/Ar"
 os.chdir(path)
@@ -48,9 +48,7 @@ nm_per_pix = (811.5311 / 1.0003 - 810.3692 / 1.0003) / 11
 x_nm = nm_per_pix * pixels + 811.5311 / 1.0003 - nm_per_pix * peak_pos[-1]
 
 peak_pos_nm = (
-    np.array(peak_pos) * nm_per_pix
-    + 811.5311 / 1.0003
-    - nm_per_pix * peak_pos[-1]
+    np.array(peak_pos) * nm_per_pix + 811.5311 / 1.0003 - nm_per_pix * peak_pos[-1]
 )
 
 

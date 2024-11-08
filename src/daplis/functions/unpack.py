@@ -16,8 +16,7 @@ functions:
 import os
 
 import numpy as np
-
-from LinoSPAD2.functions.calibrate import load_calibration_data
+from daplis.functions.calibrate import load_calibration_data
 
 
 def unpack_binary_data(
@@ -93,9 +92,7 @@ def unpack_binary_data(
     cycles = len(data_timestamps) // (timestamps * 65)
     # Transform into a matrix of size 65 by cycles*timestamps
     data_pixels = (
-        data_pixels.reshape(cycles, 65, timestamps)
-        .transpose((1, 0, 2))
-        .reshape(65, -1)
+        data_pixels.reshape(cycles, 65, timestamps).transpose((1, 0, 2)).reshape(65, -1)
     )
 
     data_timestamps = (
@@ -109,9 +106,9 @@ def unpack_binary_data(
     data_timestamps = data_timestamps[:-1]
 
     # Insert '-2' at the end of each cycle
-    insert_indices = np.linspace(
-        timestamps, cycles * timestamps, cycles
-    ).astype(np.int64)
+    insert_indices = np.linspace(timestamps, cycles * timestamps, cycles).astype(
+        np.int64
+    )
 
     data_pixels = np.insert(
         data_pixels,
@@ -128,9 +125,7 @@ def unpack_binary_data(
 
     # Combine both matrices into a single one, where each cell holds pixel
     # coordinates in the TDC and the timestamp
-    data_all = np.stack((data_pixels, data_timestamps), axis=2).astype(
-        np.int64
-    )
+    data_all = np.stack((data_pixels, data_timestamps), axis=2).astype(np.int64)
 
     if apply_calibration is False:
         data_all[:, :, 1] = data_all[:, :, 1] * 2500 / 140
@@ -315,9 +310,7 @@ def unpack_binary_data_with_absolute_timestamps(
 
     # Transform into matrix 65 by cycles*timestamps
     data_matrix_pixels = (
-        data_pixels.reshape(cycles, 65, timestamps)
-        .transpose((1, 0, 2))
-        .reshape(65, -1)
+        data_pixels.reshape(cycles, 65, timestamps).transpose((1, 0, 2)).reshape(65, -1)
     )
 
     data_matrix_timestamps = (
@@ -329,9 +322,9 @@ def unpack_binary_data_with_absolute_timestamps(
     data_matrix_pixels = data_matrix_pixels[:-1]
     data_matrix_timestamps = data_matrix_timestamps[:-1]
     # Insert '-2' at the end of each cycle
-    insert_indices = np.linspace(
-        timestamps, cycles * timestamps, cycles
-    ).astype(np.longlong)
+    insert_indices = np.linspace(timestamps, cycles * timestamps, cycles).astype(
+        np.longlong
+    )
     data_matrix_pixels = np.insert(
         data_matrix_pixels,
         insert_indices,
@@ -347,9 +340,9 @@ def unpack_binary_data_with_absolute_timestamps(
     )
     # Combine both matrices into a single one, where each cell holds pixel
     # coordinates in the TDC and the timestamp
-    data_all = np.stack(
-        (data_matrix_pixels, data_matrix_timestamps), axis=2
-    ).astype(np.int64)
+    data_all = np.stack((data_matrix_pixels, data_matrix_timestamps), axis=2).astype(
+        np.int64
+    )
 
     if apply_calibration is False:
         data_all[:, :, 1] = data_all[:, :, 1] * 2500 / 140

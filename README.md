@@ -1,6 +1,6 @@
-# LinoSPAD2
+## Data Analysis Package for LInoSpad (DAPLIS)
 
-Package for unpacking and analyzing the binary data from LinoSPAD2.
+Package for unpacking and analyzing the binary data from the timestamping mode of the LinoSPAD2 detector.
 
 ![Tests](https://github.com/rngKomorebi/LinoSPAD2/actions/workflows/tests.yml/badge.svg)
 ![Documentation](https://github.com/rngKomorebi/LinoSPAD2/actions/workflows/documentation.yml/badge.svg)
@@ -19,13 +19,17 @@ differences, etc.)
 
 The "params" folder holds masks (used to mask some of the noisiest
 pixels) and calibration data (compensating for TDC nonlinearities and
-offset) for LinoSPAD2 daughterboards "A5" and "NL11".
+offset) for LinoSPAD2 daughterboards.
 
 The "archive" folder is a collection of scripts for debugging, tests,
 older versions of functions, etc.
 
+The "examples" folder contains a few jupyter notebooks with examples
+on how to use the main functions, showcasing how to work with the
+most important function parameters.
+
 Full documentation, including examples and full documentation of
-modules and functions, can be found [here](https://rngkomorebi.github.io/LinoSPAD2/).
+modules and functions, can be found [here](https://rngkomorebi.github.io/daplis/).
 
 Some functions (mainly the plotting ones) save plots as pictures in the
 .png format, creating a folder for the output in the same folder that
@@ -38,20 +42,26 @@ of the sensor population can be found [here](https://github.com/rngKomorebi/Lino
 
 ## Installation and usage
 
-To start using the package, one can download the whole repo. The 'main.py'
-serves as the main hub for calling the functions. "requirements.txt"
+The package can be installed using pip:
+```
+pip install daplis
+```
+
+Alternatively, to start using the package, one can download the whole repo. "requirements.txt"
 collects all packages required for this project to run. One can create
-an environment for this project either using conda or install the
+an environment for this project either using conda or pip.
+
+To install the
 necessary packages using pip (for creating virtual environments using pip
 see [this](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/)):
 ```
 pip install virtualenv
 py -m venv PATH/TO/ENVIRONMENT/ENVIRONMENT_NAME
 PATH/TO/ENVIRONMENT/ENVIRONMENT_NAME/Scripts/activate
-cd PATH/TO/GITHUB/CODES/LinoSPAD2
+cd PATH/TO/GITHUB/CODES/daplis
 pip install -r requirements.txt
 ```
-or (recommended)
+or, using conda:
 ```
 conda create --name NEW_ENVIRONMENT_NAME --file /PATH/TO/requirements.txt -c conda-forge
 ```
@@ -70,7 +80,7 @@ pip install -e .
 that will install the local package LinoSPAD2. After that, you can
 import all functions in your project:
 ```
-from LinoSPAD2.functions import plot_tmsp, delta_t, fits
+from daplis.functions import sensor_plot, delta_t, fits
 ```
 
 ## How to contribute
@@ -78,9 +88,10 @@ from LinoSPAD2.functions import plot_tmsp, delta_t, fits
 This repo consists of two branches: 'main' serves as the release version
 of the package, tested, proven to be functional, and ready to use, while
 the 'develop' branch serves as the main hub for testing new stuff. To
-contribute, the best way would be to fork the 'develop' branch and
-submit via pull requests. Everyone willing to contribute is kindly asked
-to follow the [PEP 8](https://peps.python.org/pep-0008/) and
+contribute, the best way would be to fork the repository and use the 'develop'
+branch for new introductions, submitting the results via pull requests. 
+Everyone willing to contribute is kindly asked to follow the 
+[PEP 8](https://peps.python.org/pep-0008/) and 
 [PEP 257](https://peps.python.org/pep-0257/) conventions.
 
 ## License and contact info

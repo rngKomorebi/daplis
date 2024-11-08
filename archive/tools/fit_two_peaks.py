@@ -20,7 +20,7 @@ from pyarrow import feather as ft
 from scipy import signal as sg
 from scipy.optimize import curve_fit
 
-from LinoSPAD2.functions.utils import error_propagation_division, gaussian
+from daplis.functions.utils import error_propagation_division, gaussian
 
 
 def fit_wg_double(
@@ -155,12 +155,8 @@ def fit_wg_double(
 
     av_bkg = np.average(n)
 
-    par1, pcov1 = curve_fit(
-        gauss, b11, n, p0=[max(n), b[peak_pos[0]], sigma, av_bkg]
-    )
-    par2, pcov2 = curve_fit(
-        gauss, b22, n, p0=[max(n), b[peak_pos[1]], sigma, av_bkg]
-    )
+    par1, pcov1 = curve_fit(gauss, b11, n, p0=[max(n), b[peak_pos[0]], sigma, av_bkg])
+    par2, pcov2 = curve_fit(gauss, b22, n, p0=[max(n), b[peak_pos[1]], sigma, av_bkg])
 
     # interpolate for smoother fit plot
     to_fit_b1 = np.linspace(np.min(b11), np.max(b11), len(b11) * 100)
@@ -346,9 +342,7 @@ def fit_wg_all(
     plt.rcParams.update({"font.size": 22})
 
     # bins must be in units of 17.857 ps
-    bins = np.arange(
-        np.min(data_to_plot), np.max(data_to_plot), 2500 / 140 * step
-    )
+    bins = np.arange(np.min(data_to_plot), np.max(data_to_plot), 2500 / 140 * step)
 
     # Calculate histogram of timestamp differences for primary guess
     # of fit parameters and selecting a narrower window for the fit
@@ -398,9 +392,7 @@ def fit_wg_all(
         )
 
         # bins must be in units of 17.857 ps
-        bins = np.arange(
-            np.min(data_to_plot), np.max(data_to_plot), 2500 / 140 * step
-        )
+        bins = np.arange(np.min(data_to_plot), np.max(data_to_plot), 2500 / 140 * step)
 
         n1, b1 = np.histogram(data_to_fit1, bins)
 
@@ -447,9 +439,7 @@ def fit_wg_all(
 
         vis = par1[0] / par1[-1] * 100
 
-        vis_er1 = error_propagation_division(
-            par1[0], perr1[0], par1[3], perr1[3]
-        )
+        vis_er1 = error_propagation_division(par1[0], perr1[0], par1[3], perr1[3])
         vis_er1 = vis_er1 / (vis / 100) * 100
 
         plt.plot(
@@ -759,18 +749,10 @@ def fit_wg_all(
 path0 = r"D:\LinoSPAD2\Data\board_NL11\Prague\CT_HBT\Second try\CT_HBT_1-0m_full_int"
 path1 = r"D:\LinoSPAD2\Data\board_NL11\Prague\CT_HBT\Second try\CT_HBT_2-0m_full_int"
 
-path2 = (
-    r"D:\LinoSPAD2\Data\board_NL11\Prague\CT_HBT\Second try\CT_HBT_1-0m_80%"
-)
-path3 = (
-    r"D:\LinoSPAD2\Data\board_NL11\Prague\CT_HBT\Second try\CT_HBT_1-0m_70%"
-)
-path4 = (
-    r"D:\LinoSPAD2\Data\board_NL11\Prague\CT_HBT\Second try\CT_HBT_1-0m_60%"
-)
-path5 = (
-    r"D:\LinoSPAD2\Data\board_NL11\Prague\CT_HBT\Second try\CT_HBT_1-0m_50%"
-)
+path2 = r"D:\LinoSPAD2\Data\board_NL11\Prague\CT_HBT\Second try\CT_HBT_1-0m_80%"
+path3 = r"D:\LinoSPAD2\Data\board_NL11\Prague\CT_HBT\Second try\CT_HBT_1-0m_70%"
+path4 = r"D:\LinoSPAD2\Data\board_NL11\Prague\CT_HBT\Second try\CT_HBT_1-0m_60%"
+path5 = r"D:\LinoSPAD2\Data\board_NL11\Prague\CT_HBT\Second try\CT_HBT_1-0m_50%"
 
 path6 = r"D:\LinoSPAD2\Data\board_NL11\Prague\CT_HBT\Second try\CT_HBT_2-0m_80%_int"
 path7 = r"D:\LinoSPAD2\Data\board_NL11\Prague\CT_HBT\Second try\CT_HBT_2-0m_70%_int"
@@ -794,7 +776,7 @@ path9 = r"D:\LinoSPAD2\Data\board_NL11\Prague\CT_HBT\Second try\CT_HBT_2-0m_50%_
 paths = [path0, path1, path2, path3, path4, path5, path6, path7, path8, path9]
 # paths = [path0, path1, path2, path3, path4]
 
-from LinoSPAD2.functions import delta_t, sensor_plot
+from daplis.functions import delta_t, sensor_plot
 
 for path in paths:
     # plot_tmsp.plot_sensor_population(

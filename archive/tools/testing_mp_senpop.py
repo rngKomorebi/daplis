@@ -6,8 +6,8 @@ import time
 
 import numpy as np
 
-from LinoSPAD2.functions import unpack as f_up
-from LinoSPAD2.functions import utils
+from daplis.functions import unpack as f_up
+from daplis.functions import utils
 
 
 # Step 1: Function to Process a Single File

@@ -8,7 +8,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from scipy.optimize import curve_fit
 
-from LinoSPAD2.functions import cross_talk, delta_t
+from daplis.functions import cross_talk, delta_t
 
 # path = r"D:\LinoSPAD2\Data\B7d\DCR\2024.09.24"
 
@@ -58,9 +58,7 @@ df_DCR.columns = ["Time", "Median_DCR"]
 df_DCR["Time_dt"] = pd.to_datetime(df_DCR["Time"])
 
 # # #
-txt_file = os.path.join(
-    r"D:\LinoSPAD2\Data\B7d\DCR_CT", r"2024-09-26 Storing.txt"
-)
+txt_file = os.path.join(r"D:\LinoSPAD2\Data\B7d\DCR_CT", r"2024-09-26 Storing.txt")
 
 df = pd.read_csv(txt_file, sep="\t", encoding="ANSI", skiprows=1)
 
@@ -101,9 +99,7 @@ ax.plot(
 )
 ax2 = ax.twinx()
 ax2.plot(df_DCR["Time"], df_DCR["Temperature"], color="#0e87d8", linewidth=2)
-ax.set_xticks(
-    df_DCR["Time"][::80], [f"{x}" for x in df_DCR["Time"][::80]], rotation=50
-)
+ax.set_xticks(df_DCR["Time"][::80], [f"{x}" for x in df_DCR["Time"][::80]], rotation=50)
 ax.set_xlabel("Time (H:M:S)")
 ax.set_ylabel("Median DCR (cps/pixel)")
 ax2.set_ylabel("Temperature ($^\circ$C)")
@@ -124,9 +120,7 @@ sns.scatterplot(
     hue=df_DCR["Temperature"],
     palette=palette,
 )
-plt.xticks(
-    df_DCR["Time"][::80], [f"{x}" for x in df_DCR["Time"][::80]], rotation=50
-)
+plt.xticks(df_DCR["Time"][::80], [f"{x}" for x in df_DCR["Time"][::80]], rotation=50)
 plt.xlabel("Time (H:M:S)")
 plt.ylabel("Median DCR (cps/pixel)")
 

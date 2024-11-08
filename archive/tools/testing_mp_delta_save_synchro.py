@@ -10,9 +10,9 @@ import numpy as np
 import pandas as pd
 from pyarrow import feather as ft
 
-from LinoSPAD2.functions import calc_diff as cd
-from LinoSPAD2.functions import unpack as f_up
-from LinoSPAD2.functions import utils
+from daplis.functions import calc_diff as cd
+from daplis.functions import unpack as f_up
+from daplis.functions import utils
 
 
 @dataclass
@@ -156,9 +156,7 @@ def calculate_timestamps_differences_full_sensor(
     deltas_all = {}
 
     # First board, unpack data
-    os.chdir(
-        os.path.join(data_params.path, f"{data_params.motherboard_number1}")
-    )
+    os.chdir(os.path.join(data_params.path, f"{data_params.motherboard_number1}"))
 
     if not data_params.absolute_timestamps:
         data_all1 = f_up.unpack_binary_data(
@@ -187,9 +185,7 @@ def calculate_timestamps_differences_full_sensor(
 
     # Collect indices of cycle ends (the '-2's)
     cycle_ends1 = np.where(data_all1[0].T[1] == -2)[0]
-    cyc1 = np.argmin(
-        np.abs(cycle_ends1 - np.where(data_all1[:].T[1] > 0)[0].min())
-    )
+    cyc1 = np.argmin(np.abs(cycle_ends1 - np.where(data_all1[:].T[1] > 0)[0].min()))
     if cycle_ends1[cyc1] > np.where(data_all1[:].T[1] > 0)[0].min():
         cycle_start1 = cycle_ends1[cyc1 - 1]
     else:
@@ -225,9 +221,7 @@ def calculate_timestamps_differences_full_sensor(
 
     # Collect indices of cycle ends (the '-2's)
     cycle_ends2 = np.where(data_all2[0].T[1] == -2)[0]
-    cyc2 = np.argmin(
-        np.abs(cycle_ends2 - np.where(data_all2[:].T[1] > 0)[0].min())
-    )
+    cyc2 = np.argmin(np.abs(cycle_ends2 - np.where(data_all2[:].T[1] > 0)[0].min()))
     if cycle_ends2[cyc2] > np.where(data_all2[:].T[1] > 0)[0].min():
         cycle_start2 = cycle_ends2[cyc2 - 1]
     else:
@@ -274,16 +268,12 @@ def calculate_timestamps_differences_full_sensor(
     # Get timestamps for both pixels in the given cycle
     for cyc in range(len(cycle_ends1) - 1):
         pix1_ = pix1[
-            np.logical_and(
-                pix1 >= cycle_ends1[cyc], pix1 < cycle_ends1[cyc + 1]
-            )
+            np.logical_and(pix1 >= cycle_ends1[cyc], pix1 < cycle_ends1[cyc + 1])
         ]
         if not np.any(pix1_):
             continue
         pix2_ = pix2[
-            np.logical_and(
-                pix2 >= cycle_ends2[cyc], pix2 < cycle_ends2[cyc + 1]
-            )
+            np.logical_and(pix2 >= cycle_ends2[cyc], pix2 < cycle_ends2[cyc + 1])
         ]
 
         if not np.any(pix2_):
@@ -418,9 +408,7 @@ def calculate_and_save_timestamp_differences_full_sensor_mp(
     """
     # parameter type check
     if isinstance(pixels, list) is False:
-        raise TypeError(
-            "'pixels' should be a list of integers or a list of two lists"
-        )
+        raise TypeError("'pixels' should be a list of integers or a list of two lists")
     if isinstance(firmware_version, str) is False:
         raise TypeError(
             "'firmware_version' should be string, '2212s', '2212b' or '2208'"
@@ -451,9 +439,7 @@ def calculate_and_save_timestamp_differences_full_sensor_mp(
     try:
         os.chdir(os.path.join(path, f"{motherboard_number1}"))
     except FileNotFoundError as exc:
-        raise FileNotFoundError(
-            f"Data from {motherboard_number1} not found"
-        ) from exc
+        raise FileNotFoundError(f"Data from {motherboard_number1} not found") from exc
     files_all1 = sorted(glob.glob("*.dat*"))
     out_file_name = files_all1[0][:-4]
     # os.chdir("..")
@@ -463,9 +449,7 @@ def calculate_and_save_timestamp_differences_full_sensor_mp(
         # os.chdir(f"{motherboard_number2}")
         os.chdir(os.path.join(path, f"{motherboard_number2}"))
     except FileNotFoundError as exc:
-        raise FileNotFoundError(
-            f"Data from {motherboard_number2} not found"
-        ) from exc
+        raise FileNotFoundError(f"Data from {motherboard_number2} not found") from exc
     files_all2 = sorted(glob.glob("*.dat*"))
     out_file_name = out_file_name + "-" + files_all2[-1][:-4]
     # os.chdir("..")
@@ -549,6 +533,4 @@ if __name__ == "__main__":
     end_time = time.time()
     elapsed_time = end_time - start_time
 
-    print(
-        f"Multiprocessing (all CPU cores), Execution time: {elapsed_time} seconds"
-    )
+    print(f"Multiprocessing (all CPU cores), Execution time: {elapsed_time} seconds")

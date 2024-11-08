@@ -9,7 +9,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
-from LinoSPAD2.functions import unpack as f_up
+from daplis.functions import unpack as f_up
 
 # path1 = r"D:\LinoSPAD2\Data\board_NL11\Prague\Synchro\synchro_delay_test\#21"
 # path2 = r"D:\LinoSPAD2\Data\board_NL11\Prague\Synchro\synchro_delay_test\#33"
@@ -115,18 +115,14 @@ def delta_save_full(
     try:
         os.chdir("{}".format(mb_num1))
     except FileNotFoundError:
-        raise FileNotFoundError(
-            "Path to data from {} is not found".format(mb_num1)
-        )
+        raise FileNotFoundError("Path to data from {} is not found".format(mb_num1))
     files_all1 = glob.glob("*.dat*")
     out_file_name = files_all1[0][:-4]
     os.chdir("..")
     try:
         os.chdir("{}".format(mb_num2))
     except FileNotFoundError:
-        raise FileNotFoundError(
-            "Path to data from {} is not found".format(mb_num2)
-        )
+        raise FileNotFoundError("Path to data from {} is not found".format(mb_num2))
     files_all2 = glob.glob("*.dat*")
     out_file_name = out_file_name + "-" + files_all2[-1][:-4]
     os.chdir("..")
@@ -161,9 +157,7 @@ def delta_save_full(
             file, db_num, mb_num1, fw_ver, timestamps, inc_offset, app_calib
         )
         cycle_ends1 = np.where(data_all1[0].T[1] == -2)[0]
-        cyc1 = np.argmin(
-            np.abs(cycle_ends1 - np.where(data_all1[:].T[1] > 0)[0].min())
-        )
+        cyc1 = np.argmin(np.abs(cycle_ends1 - np.where(data_all1[:].T[1] > 0)[0].min()))
         if cycle_ends1[cyc1] > np.where(data_all1[:].T[1] > 0)[0].min():
             cycle_start1 = cycle_ends1[cyc1 - 1]
         else:
@@ -178,9 +172,7 @@ def delta_save_full(
             file, db_num, mb_num2, fw_ver, timestamps, inc_offset, app_calib
         )
         cycle_ends2 = np.where(data_all2[0].T[1] == -2)[0]
-        cyc2 = np.argmin(
-            np.abs(cycle_ends2 - np.where(data_all2[:].T[1] > 0)[0].min())
-        )
+        cyc2 = np.argmin(np.abs(cycle_ends2 - np.where(data_all2[:].T[1] > 0)[0].min()))
         if cycle_ends2[cyc2] > np.where(data_all2[:].T[1] > 0)[0].min():
             cycle_start2 = cycle_ends2[cyc2 - 1]
         else:
@@ -211,16 +203,12 @@ def delta_save_full(
         # get timestamp for both pixels in the given cycle
         for cyc in range(len(cycle_ends1) - 1):
             pix1_ = pix1[
-                np.logical_and(
-                    pix1 > cycle_ends1[cyc], pix1 < cycle_ends1[cyc + 1]
-                )
+                np.logical_and(pix1 > cycle_ends1[cyc], pix1 < cycle_ends1[cyc + 1])
             ]
             if not np.any(pix1_):
                 continue
             pix2_ = pix2[
-                np.logical_and(
-                    pix2 > cycle_ends2[cyc], pix2 < cycle_ends2[cyc + 1]
-                )
+                np.logical_and(pix2 > cycle_ends2[cyc], pix2 < cycle_ends2[cyc + 1])
             ]
 
             if not np.any(pix2_):
@@ -235,9 +223,7 @@ def delta_save_full(
             for t1 in tmsp1:
                 deltas = tmsp2 - t1
                 ind = np.where(np.abs(deltas) < delta_window)[0]
-                deltas_all["{},{}".format(pixels[0], pixels[1])].extend(
-                    deltas[ind]
-                )
+                deltas_all["{},{}".format(pixels[0], pixels[1])].extend(deltas[ind])
         # Save data as a .csv file in a cycle so data is not lost
         # in the case of failure close to the end
         data_for_plot_df = pd.DataFrame.from_dict(deltas_all, orient="index")
@@ -257,15 +243,10 @@ def delta_save_full(
                 header=False,
             )
         else:
-            data_for_plot_df.to_csv(
-                "{}.csv".format(out_file_name), index=False
-            )
+            data_for_plot_df.to_csv("{}.csv".format(out_file_name), index=False)
         os.chdir("..")
 
-    if (
-        os.path.isfile(path + "/delta_ts_data/{}.csv".format(out_file_name))
-        is True
-    ):
+    if os.path.isfile(path + "/delta_ts_data/{}.csv".format(out_file_name)) is True:
         print(
             "\n> > > Timestamp differences are saved as {file}.csv in "
             "{path} < < <".format(

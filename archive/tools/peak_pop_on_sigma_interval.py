@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 from pyarrow import feather as ft
 from scipy import signal as sg
 
-from LinoSPAD2.functions import utils
+from daplis.functions import utils
 
 init_path = r"D:\LinoSPAD2\Data\board_NL11\Prague\CT_HBT\Second try"
 os.chdir(init_path)

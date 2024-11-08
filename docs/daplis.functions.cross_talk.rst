@@ -1,7 +1,7 @@
-LinoSPAD2.functions.cross\_talk module
+daplis.functions.cross\_talk module
 ======================================
 
-.. automodule:: LinoSPAD2.functions.cross_talk
+.. automodule:: daplis.functions.cross_talk
    :members:
    :undoc-members:
    :show-inheritance:

@@ -6,7 +6,7 @@
     from matplotlib import pyplot as plt
     
 
-    from LinoSPAD2.functions import sensor_plot
+    from daplis.functions import sensor_plot
 
     init_path = r"D:\LinoSPAD2\Data\board_NL11\Prague\rate_on_clock\Final_try"
 

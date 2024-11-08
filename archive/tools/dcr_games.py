@@ -4,7 +4,7 @@ import pickle
 import numpy as np
 from matplotlib import pyplot as plt
 
-from LinoSPAD2.functions import cross_talk, sensor_plot
+from daplis.functions import cross_talk, sensor_plot
 
 # path33 = r"D:\LinoSPAD2\Data\board_NL11\Prague\DCR\#33"
 # path21 = r"D:\LinoSPAD2\Data\board_NL11\Prague\DCR\#21"

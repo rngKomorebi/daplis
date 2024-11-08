@@ -4,7 +4,7 @@ from glob import glob
 from matplotlib import pyplot as plt
 from PIL import Image
 
-from LinoSPAD2.functions import sensor_plot
+from daplis.functions import sensor_plot
 
 path = r"D:\LinoSPAD2\Data\board_NL11\Prague\MZI\05.08.24"
 os.chdir(path)
@@ -55,6 +55,4 @@ for file in sorted(glob("*.png"), key=os.path.getctime):
     im = Image.open(file)
     images.append(im)
 
-images[0].save(
-    "gif.gif", save_all=True, append_images=images[1:], duration=500, loop=0
-)
+images[0].save("gif.gif", save_all=True, append_images=images[1:], duration=500, loop=0)

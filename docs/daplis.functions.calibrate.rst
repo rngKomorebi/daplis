@@ -1,7 +1,7 @@
-LinoSPAD2.functions.calibrate module
+daplis.functions.calibrate module
 ====================================
 
-.. automodule:: LinoSPAD2.functions.calibrate
+.. automodule:: daplis.functions.calibrate
    :members:
    :undoc-members:
    :show-inheritance:

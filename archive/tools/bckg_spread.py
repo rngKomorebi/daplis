@@ -6,7 +6,7 @@ import seaborn as sns
 from matplotlib import pyplot as plt
 from pyarrow import feather as ft
 
-from LinoSPAD2.functions import utils
+from daplis.functions import utils
 
 def _extend_spread_range(spread_bins, spread_counts, extension: int):
     """Extend the background spread bins and counts.
@@ -324,7 +324,7 @@ sigma_of_count_spread_to_average_from_ft_file(path,
 #####
 
 
-from LinoSPAD2.functions import fits, delta_t
+from daplis.functions import fits, delta_t
 
 # path = r"D:\LinoSPAD2\Data\board_NL11\Prague\Halogen_HBT"
 path = r'C:\Users\bruce\Downloads\Ha_HBT(2)'

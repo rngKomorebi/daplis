@@ -1,7 +1,7 @@
-LinoSPAD2.functions.calc\_diff module
+daplis.functions.calc\_diff module
 =====================================
 
-.. automodule:: LinoSPAD2.functions.calc_diff
+.. automodule:: daplis.functions.calc_diff
    :members:
    :undoc-members:
    :show-inheritance:

@@ -4,7 +4,7 @@ from glob import glob
 
 import numpy as np
 
-from LinoSPAD2.functions import delta_t, fits
+from daplis.functions import delta_t, fits
 
 # path = r"D:\LinoSPAD2\Data\D2b_board\28.06.2024\second_try"
 
@@ -154,7 +154,7 @@ a_clean[np.where(a[:, 1, 2] > 100)[0]] = None
 
 from matplotlib import pyplot as plt
 
-from LinoSPAD2.functions import utils
+from daplis.functions import utils
 
 plt.figure(figsize=(12, 8))
 for i in range(len(a_clean)):

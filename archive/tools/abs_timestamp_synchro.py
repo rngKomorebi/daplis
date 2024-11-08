@@ -9,9 +9,9 @@ from matplotlib import pyplot as plt
 from pyarrow import feather as ft
 from tqdm import tqdm
 
-from LinoSPAD2.functions import calc_diff as cd
-from LinoSPAD2.functions import unpack as f_up
-from LinoSPAD2.functions import utils
+from daplis.functions import calc_diff as cd
+from daplis.functions import unpack as f_up
+from daplis.functions import utils
 
 
 def calculate_and_save_timestamp_differences_full_sensor(

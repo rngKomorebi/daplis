@@ -1,7 +1,7 @@
-LinoSPAD2.functions.fits module
+daplis.functions.fits module
 ===============================
 
-.. automodule:: LinoSPAD2.functions.fits
+.. automodule:: daplis.functions.fits
    :members:
    :undoc-members:
    :show-inheritance:

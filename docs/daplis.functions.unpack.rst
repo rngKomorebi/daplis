@@ -1,7 +1,7 @@
-LinoSPAD2.functions.unpack module
+daplis.functions.unpack module
 =================================
 
-.. automodule:: LinoSPAD2.functions.unpack
+.. automodule:: daplis.functions.unpack
    :members:
    :undoc-members:
    :show-inheritance:

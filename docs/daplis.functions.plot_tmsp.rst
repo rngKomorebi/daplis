@@ -1,7 +1,7 @@
-LinoSPAD2.functions.plot\_tmsp module
+daplis.functions.plot\_tmsp module
 =====================================
 
-.. automodule:: LinoSPAD2.functions.plot_tmsp
+.. automodule:: daplis.functions.sensor_plot
    :members:
    :undoc-members:
    :show-inheritance:

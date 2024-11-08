@@ -5,7 +5,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from pyarrow import feather as ft
 
-from LinoSPAD2.functions import cross_talk, delta_t, sensor_plot, sensor_plot
+from daplis.functions import cross_talk, delta_t, sensor_plot, sensor_plot
 
 path = r"/media/sj/King4TB/LS2_Data/CT/#21"
 
@@ -361,7 +361,7 @@ plt.legend()
 import os
 from glob import glob
 
-from LinoSPAD2.functions import cross_talk
+from daplis.functions import cross_talk
 
 path = r"/media/sj/King4TB/LS2_Data/CT/#21"
 

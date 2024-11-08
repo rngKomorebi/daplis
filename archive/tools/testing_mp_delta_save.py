@@ -10,9 +10,9 @@ import pandas as pd
 import pyarrow.feather as feather
 from tqdm import tqdm
 
-from LinoSPAD2.functions import calc_diff as cd
-from LinoSPAD2.functions import unpack as f_up
-from LinoSPAD2.functions import utils
+from daplis.functions import calc_diff as cd
+from daplis.functions import unpack as f_up
+from daplis.functions import utils
 
 
 def process_file(
@@ -39,9 +39,7 @@ def process_file(
     # apply_calibration = True
 
     if isinstance(pixels, list) is False:
-        raise TypeError(
-            "'pixels' should be a list of integers or a list of two lists"
-        )
+        raise TypeError("'pixels' should be a list of integers or a list of two lists")
     if isinstance(firmware_version, str) is False:
         raise TypeError(
             "'firmware_version' should be string, '2212s', '2212b' or '2208'"
@@ -95,16 +93,12 @@ def process_file(
 
             for cyc in range(len(cycle_ends) - 1):
                 pix1_ = pix1[
-                    np.logical_and(
-                        pix1 >= cycle_ends[cyc], pix1 < cycle_ends[cyc + 1]
-                    )
+                    np.logical_and(pix1 >= cycle_ends[cyc], pix1 < cycle_ends[cyc + 1])
                 ]
                 if not np.any(pix1_):
                     continue
                 pix2_ = pix2[
-                    np.logical_and(
-                        pix2 >= cycle_ends[cyc], pix2 < cycle_ends[cyc + 1]
-                    )
+                    np.logical_and(pix2 >= cycle_ends[cyc], pix2 < cycle_ends[cyc + 1])
                 ]
                 if not np.any(pix2_):
                     continue
@@ -258,9 +252,7 @@ if __name__ == "__main__":
     end_time = time.time()
     elapsed_time = end_time - start_time
 
-    print(
-        f"Multiprocessing (all CPU cores), Execution time: {elapsed_time} seconds"
-    )
+    print(f"Multiprocessing (all CPU cores), Execution time: {elapsed_time} seconds")
 
 
 # file = "/home/sj/LS2_Data/703/MP_RESULTS/out.feather"

@@ -370,7 +370,7 @@ def error_propagation_division(x, sigma_x, y, sigma_y, rho_xy=0):
     return sigma_f
 
 
-def combine_feather_files(path: str):
+def combine_feather_files(path: str, skip_data: bool = False):
     """Combine ".feather" files into one.
 
     Find all numbered ".feather" files for the data files found in the
@@ -379,7 +379,12 @@ def combine_feather_files(path: str):
     Parameters
     ----------
     path : str
-        Path to data files.
+        Path to the folder with the '.dat' data files.
+    skip_data : bool
+        Switch for skipping the data and working directly in the
+        'delta_ts_data' folder. Can be used when the raw '.dat' files
+        are not available or the data set is incomplete. The default is
+        False.
 
     Raises
     ------
@@ -387,13 +392,20 @@ def combine_feather_files(path: str):
         Raised when the folder "delta_ts_data", where timestamp
         differences are saved, cannot be found in the path.
     """
+
     os.chdir(path)
 
-    files_all = glob.glob("*.dat*")
-    # files_all.sort(key=os.path.getmtime)
-    files_all = sorted(files_all)
-
-    out_file_name = files_all[0][:-4] + "-" + files_all[-1][:-4]
+    if not skip_data:
+        files_all = sorted(glob.glob("*.dat*"))
+        if files_all != []:
+            feather_file_name = files_all[0][:-4] + "-" + files_all[-1][:-4]
+            combined_feather_file_name = feather_file_name
+        else:
+            feather_file_name = ""
+            combined_feather_file_name = "combined"
+    else:
+        feather_file_name = ""
+        combined_feather_file_name = "combined"
 
     try:
         os.chdir("delta_ts_data")
@@ -402,7 +414,7 @@ def combine_feather_files(path: str):
             "Folder with saved timestamp differences was not found"
         )
 
-    file_pattern = f"{out_file_name}_*.feather"
+    file_pattern = f"{feather_file_name}*_*.feather"
 
     feather_files = glob.glob(file_pattern)
 
@@ -414,7 +426,7 @@ def combine_feather_files(path: str):
 
         data_combined = pd.concat([data_combined, data], ignore_index=True)
 
-        data_combined.to_feather(f"{out_file_name}.feather")
+        data_combined.to_feather(f"{combined_feather_file_name}.feather")
 
     for ft_file in feather_files:
         os.remove(ft_file)
