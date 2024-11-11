@@ -37,14 +37,15 @@ from typing import List
 
 import numpy as np
 import pandas as pd
-from daplis.functions import calc_diff as cd
-from daplis.functions import sensor_plot
-from daplis.functions import unpack as f_up
-from daplis.functions import utils
 from matplotlib import pyplot as plt
 from pyarrow import feather as ft
 from scipy.optimize import curve_fit
 from tqdm import tqdm
+
+from daplis.functions import calc_diff as cd
+from daplis.functions import sensor_plot
+from daplis.functions import unpack as f_up
+from daplis.functions import utils
 
 
 def _collect_cross_talk(
@@ -326,11 +327,13 @@ def _plot_cross_talk_peaks(
             continue
         counts, bin_edges = np.histogram(
             data_cut,
-            bins=(np.arange(np.min(data_cut), np.max(data_cut), multiplier * 17.857)),
+            bins=(
+                np.arange(np.min(data_cut), np.max(data_cut), multiplier * 2500 / 140)
+            ),
         )
         if len(counts) < 1:
             continue
-        bin_centers = (bin_edges - multiplier * 17.857 / 2)[1:]
+        bin_centers = (bin_edges - multiplier * 2500 / 140 / 2)[1:]
 
         try:
             params, _ = curve_fit(
@@ -417,7 +420,7 @@ def _plot_cross_talk_peaks(
 def _plot_cross_talk_grid(
     path,
     pixels,
-    step,
+    multiplier,
     window: int = 50e3,
     pix_on_left: bool = False,
     feather_file_name: str = "",
@@ -432,7 +435,7 @@ def _plot_cross_talk_grid(
     pixels : list
         List of pixels to plot the grid for. The first is the aggressor
         pixel.
-    step : int
+    multiplier : int
         Multiplier of the LinoSPAD2 average timing bin of 17.857 ps for
         the histograms.
     window : int, optional
@@ -480,11 +483,13 @@ def _plot_cross_talk_grid(
             continue
         counts, bin_edges = np.histogram(
             data_cut,
-            bins=(np.arange(np.min(data_cut), np.max(data_cut), step * 17.857)),
+            bins=(
+                np.arange(np.min(data_cut), np.max(data_cut), multiplier * 2500 / 140)
+            ),
         )
         if len(counts) < 1:
             continue
-        bin_centers = (bin_edges - step * 17.857 / 2)[1:]
+        bin_centers = (bin_edges - multiplier * 2500 / 140 / 2)[1:]
 
         try:
             params, _ = curve_fit(
@@ -875,7 +880,6 @@ def _calculate_and_plot_cross_talk(
             pixels=pix,
             multiplier=multiplier,
             window=delta_window,
-            senpop=senpop,
             pix_on_left=pix_on_left,
             feather_file_name=feather_file_name,
             show_plots=show_plots,
@@ -1099,6 +1103,23 @@ def zero_to_cross_talk_collect(
         used to reverse the correction. The default is False.
     """
 
+    # Define matrix of pixel coordinates, where rows are numbers of TDCs
+    # and columns are the pixels that connected to these TDCs
+    if firmware_version == "2212s":
+        pass
+    elif firmware_version == "2212b":
+        print(
+            "\nFor firmware version '2212b' cross-talk numbers "
+            "would be incorrect, try data collected with '2212s'"
+        )
+        sys.exit()
+    else:
+        print(
+            "\nFirmware version is not recognized. For cross-talk "
+            "calculations, firmware version '2212s' should be used."
+        )
+        sys.exit()
+
     print("\n> > > Collecting cross-talk data < < <\n")
 
     # Reverse correction if the motherboard connected to side "23" of the
@@ -1122,8 +1143,6 @@ def zero_to_cross_talk_collect(
         motherboard_number,
         firmware_version,
         timestamps,
-        include_offset,
-        apply_calibration,
         app_mask=False,
         save_to_file=True,
         absolute_timestamps=absolute_timestamps,
@@ -1175,7 +1194,7 @@ def zero_to_cross_talk_plot(
     path: str,
     pixels: List[int],
     delta_window: float = 50e3,
-    step: int = 10,
+    multiplier: int = 10,
     show_plots: bool = False,
     feather_file_name: str = "",
 ):
@@ -1200,7 +1219,7 @@ def zero_to_cross_talk_plot(
     delta_window : float, optional
         Window size for histograms of timestamp differences. The default
         is 50e3.
-    step : int, optional
+    multiplier : int, optional
         Multiplier of average LinoSPAD2 time bin, which is 17.857 ps,
         for histograms. The default is 10.
     show_plots : bool, optional
@@ -1240,7 +1259,7 @@ def zero_to_cross_talk_plot(
     ct_right, ct_err_right = _calculate_and_plot_cross_talk(
         path,
         pixels_plus_20,
-        step,
+        multiplier,
         delta_window,
         senpop,
         pix_on_left=False,
@@ -1250,7 +1269,7 @@ def zero_to_cross_talk_plot(
     ct_left, ct_err_left = _calculate_and_plot_cross_talk(
         path,
         pixels_minus_20,
-        step,
+        multiplier,
         delta_window,
         senpop,
         pix_on_left=True,
