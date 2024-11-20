@@ -13,18 +13,17 @@ If the package was not found, it can be installed using:
 ```
 pip install virtualenv
 ```
-To create a new environment, run the following (if 'py -m' does not work, 
-try 'python -m', 'python3 -m'):
+To create a new environment, run the following:
 ```
-py -m venv PATH/TO/ENVIRONMENT/ENVIRONMENT_NAME
+virtualenv PATH/TO/NEW/ENVIRONMENT
 ```
 To activate the environment (on Windows):
 ```
-PATH/TO/ENVIRONMENT/ENVIRONMENT_NAME/Scripts/activate
+PATH/TO/NEW/ENVIRONMENTScripts/activate
 ```
 and on Linux:
 ```
-source PATH/TO/ENVIRONMENT/ENVIRONMENT_NAME/bin/activate
+source PATH/TO/NEW/ENVIRONMENTbin/activate
 ```
 
 Then, package itself can be installed using pip inside the environment:

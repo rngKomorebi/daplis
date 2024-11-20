@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=70.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "daplis"
-version = "0.9.9"
+version = "1.0.1"
 description = "Data Analysis Package for LInoSpad"
 authors = [{ name = "Sergei Kulkov", email = "sergei.kulkov23@gmail.com" }]
 license = { text = "MIT" }
