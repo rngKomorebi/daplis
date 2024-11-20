@@ -53,10 +53,10 @@ pip show virtualenv
 ```
 If the package was not found, it can be installed using:
 ```
-pip instal virtualenv
+pip install virtualenv
 ```
-To create a new environment, run the following (if 'py -m' does not work,
- try 'python -m', 'python3 -m'):
+To create a new environment, run the following (if 'py -m' does not work, 
+try 'python -m', 'python3 -m'):
 ```
 py -m venv PATH/TO/ENVIRONMENT/ENVIRONMENT_NAME
 ```
@@ -74,14 +74,29 @@ Then, package itself can be installed using pip inside the environment:
 pip install daplis
 ```
 
-Alternatively, to start using the package, one can download the whole repo. "requirements.txt"
-lists all packages required for this project to run. One can create
-an environment for this project either using conda or pip.
+Alternatively, to start using the package, one can download the whole repo. "requirements.txt" 
+lists all packages required for this project to run. One can create 
+an environment for this project either using conda or pip following the instruction 
+above. Once the new environmnt is activated, run the following to install 
+the required packages:
 ```
 cd PATH/TO/GITHUB/CODES/daplis
 pip install -r requirements.txt
 ```
-or, using conda:
+Now, the package can be installed via
+```
+pip install -e .
+```
+where '-e' stands for editable: any changes introduced to the package will
+instantly become a part of the package and can be used without the need
+of reinstalling the whole thing. After that, one can import any function 
+from the daplis package:
+```
+from daplis.functions import sensor_plot, delta_t, fits
+```
+
+For conda users, the new environment can be installed using the 'requirements' 
+text file directly:
 ```
 conda create --name NEW_ENVIRONMENT_NAME --file /PATH/TO/requirements.txt -c conda-forge
 ```
@@ -92,13 +107,6 @@ conda activate NEW_ENVIRONMENT_NAME
 and run
 ```
 pip install -e .
-```
-where '-e' stands for editable: any changes introduced to the package will
-instantly become a part of the package and can be used without the need
-of reinstalling the whole thing. After that, one can import any function 
-from the daplis package:
-```
-from daplis.functions import sensor_plot, delta_t, fits
 ```
 
 ## How to contribute

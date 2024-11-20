@@ -11,7 +11,7 @@ pip show virtualenv
 ```
 If the package was not found, it can be installed using:
 ```
-pip instal virtualenv
+pip install virtualenv
 ```
 To create a new environment, run the following (if 'py -m' does not work,
  try 'python -m', 'python3 -m'):
