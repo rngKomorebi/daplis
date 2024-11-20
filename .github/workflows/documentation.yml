@@ -4,17 +4,20 @@ permissions:
     contents: write
 jobs:
   docs:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v3
+        with:
+          python-version: '3.10' 
       - name: Install dependencies
         run: |
+          pip install --upgrade pip
           pip install sphinx sphinx_rtd_theme myst-parser sphinx-math-dollar -r requirements.txt
       - name: Sphinx build
         run: |
           pip install -e .
-          sphinx-apidoc -f -e -M -o docs src/LinoSPAD2/functions/
+          sphinx-apidoc -f -e -M -o docs src/daplis/functions/
           sphinx-build docs _build
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3

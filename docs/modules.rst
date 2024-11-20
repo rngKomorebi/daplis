@@ -1,4 +1,4 @@
-LinoSPAD2
+daplis
 =========
 
 .. toctree::

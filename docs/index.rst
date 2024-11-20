@@ -3,12 +3,13 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-LinoSPAD2 timestamp output analysis package
+Data Analysis Package for LinoSPAD2
 ==========================================================
 
-This document aims to provide complete documentation on the LinoSPAD2
-data analysis package, with a couple of examples of how functions should
-be used and a collection of all docstrings from modules and functions.
+This document aims to provide a complete documentation on the Data 
+Analysis Package for LinoSPAD2 (DAPLIS), with a couple of examples on 
+how the package functions should be used, and a collection of docstrings 
+from all modules and functions.
 
 .. toctree::
    :maxdepth: 3
@@ -17,7 +18,7 @@ be used and a collection of all docstrings from modules and functions.
    intro
    installation
    examples
-   LinoSPAD2
+   daplis
    contribute
    license
    acknowledgement

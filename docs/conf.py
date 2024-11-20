@@ -18,12 +18,12 @@ sys.path.insert(0, os.path.abspath(".."))
 
 # -- Project information -----------------------------------------------------
 
-project = "LinoSPAD2 data analysis module"
-copyright = "2023, Sergei Kulkov"
+project = "Data Analysis Package for LinoSPAD2"
+copyright = "2024, Sergei Kulkov"
 author = "Sergei Kulkov"
 
 # The full version, including alpha/beta/rc tags
-release = "0.9.0"
+release = "1.0.0"
 
 
 # -- General configuration ---------------------------------------------------

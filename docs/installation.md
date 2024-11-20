@@ -1,34 +1,60 @@
 # Installation and dependencies
 
-To start using the package, one can download the whole repo. The 'main.py'
-serves as the main hub for calling the functions. "requirements.txt"
-collects all packages required for this project to run. One can create
-an environment for this project either using conda or pip (for creating
-virtual environments using pip
-see [this](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/)):
+A fresh, separate virtual environment is highly recommended before installing the package.
+This can be done using pip, see, e.g., [this](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/).
+This can help to avoid any dependency conflicts and ensure smooth operation of the
+package.
 
-Using pip:
+First, check if the virtualenv package is installed. To do this, one can run:
+```
+pip show virtualenv
+```
+If the package was not found, it can be installed using:
 ```
 pip instal virtualenv
-py -m venv PATH/TO/NEW/ENVIRONMENT/NEW_ENVIRONMENT_NAME
-PATH/TO/NEW/ENVIRONMENT/NEW_ENVIRONMENT_NAME/Scripts/activate
-cd PATH/TO/THIS/PACKAGE
+```
+To create a new environment, run the following (if 'py -m' does not work,
+ try 'python -m', 'python3 -m'):
+```
+py -m venv PATH/TO/ENVIRONMENT/ENVIRONMENT_NAME
+```
+To activate the environment (on Windows):
+```
+PATH/TO/ENVIRONMENT/ENVIRONMENT_NAME/Scripts/activate
+```
+and on Linux:
+```
+source PATH/TO/ENVIRONMENT/ENVIRONMENT_NAME/bin/activate
+```
+
+Then, package itself can be installed using pip inside the environment:
+```
+pip install daplis
+```
+
+Alternatively, to start using the package, one can download the whole repo. "requirements.txt"
+lists all packages required for this project to run. One can create
+an environment for this project either using conda or pip.
+```
+cd PATH/TO/GITHUB/CODES/daplis
 pip install -r requirements.txt
+```
+or, using conda:
+```
+conda create --name NEW_ENVIRONMENT_NAME --file /PATH/TO/requirements.txt -c conda-forge
+```
+To install the package, first, switch to the created environment:
+```
+conda activate NEW_ENVIRONMENT_NAME
+```
+and run
+```
 pip install -e .
 ```
-where the last command installs the package itself.
-
-Using conda:
+where '-e' stands for editable: any changes introduced to the package will
+instantly become a part of the package and can be used without the need
+of reinstalling the whole thing. After that, one can import any function 
+from the daplis package:
 ```
-cd PATH/TO/THIS/PACKAGE
-conda create --name NEW_ENVIRONMENT_NAME --file requirements.txt -c conda-forge
-conda activate NEW_ENVIRONMENT_NAME
-conda develop .
-```
-Alternatively, if one wishes to implement the package in the already
-existing environment, skipping the creation of a new environment and
-installation of the package is advised. In any case, after the package
-is installed, one can import the functions:
-```
-from LinoSPAD2.functions import plot_tmsp, delta_t, fits
+from daplis.functions import sensor_plot, delta_t, fits
 ```

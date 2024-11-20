@@ -1,33 +1,30 @@
-import unittest
 import os
 import shutil
+import unittest
 
-from LinoSPAD2.functions.plot_tmsp import (
-    plot_pixel_hist,
-    plot_sen_pop,
-    plot_spdc,
-)
+from daplis.functions.sensor_plot import plot_sensor_population, plot_single_pix_hist
 
 
 class TestPlotScripts(unittest.TestCase):
     def setUp(self):
         self.path = "tests/test_data"
-        self.board_number = "A5"
-        self.fw_ver = "2212b"
-        self.timestamps = 200
+        self.pix = 15
+        self.daughterboard_number = "NL11"
+        self.motherboard_number = "#33"
+        self.firmware_version = "2212b"
+        self.timestamps = 300
 
     def test_a_plot_pixel_hist(self):
         # Positive test case
-        os.chdir(r"{}".format(os.path.realpath(__file__) + "/../.."))
+        os.chdir(r"{}".format(os.path.dirname(os.path.realpath(__file__)) + "/.."))
 
-        pix = 15
-        plot_pixel_hist(
+        plot_single_pix_hist(
             self.path,
-            pix,
-            self.fw_ver,
-            self.board_number,
+            self.pix,
+            self.daughterboard_number,
+            self.motherboard_number,
+            self.firmware_version,
             self.timestamps,
-            show_fig=True,
         )
         self.assertTrue(
             os.path.exists(
@@ -37,11 +34,12 @@ class TestPlotScripts(unittest.TestCase):
 
     def test_b_plot_sen_pop(self):
         # Positive test case
-        os.chdir(r"{}".format(os.path.realpath(__file__) + "/../.."))
-        plot_sen_pop(
+        os.chdir(r"{}".format(os.path.dirname(os.path.realpath(__file__)) + "/.."))
+        plot_sensor_population(
             self.path,
-            self.board_number,
-            self.fw_ver,
+            self.daughterboard_number,
+            self.motherboard_number,
+            self.firmware_version,
             self.timestamps,
             scale="linear",
             style="-o",
@@ -73,7 +71,7 @@ class TestPlotScripts(unittest.TestCase):
 
     def tearDownClass():
         # Clean up after tests
-        os.chdir(r"{}".format(os.path.realpath(__file__) + "/.."))
+        os.chdir(r"{}".format(os.path.dirname(os.path.realpath(__file__))))
         shutil.rmtree("test_data/results")
 
 

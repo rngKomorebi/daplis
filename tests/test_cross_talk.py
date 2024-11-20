@@ -1,71 +1,139 @@
-import glob
 import os
 import shutil
 import unittest
 
 import numpy as np
-import pandas as pd
 
-from LinoSPAD2.functions.cross_talk import collect_ct, plot_ct
+from daplis.functions.cross_talk import (
+    collect_dcr_by_file,
+    plot_dcr_histogram_and_stability,
+    zero_to_cross_talk_collect,
+    zero_to_cross_talk_plot,
+)
 
 
-class TestCTFull(unittest.TestCase):
+class TestCrossTalkFunctions(unittest.TestCase):
     def setUp(self):
         # Set up test variables
-        self.path = "tests/test_data"
-        self.pixels = np.arange(0, 20, 1)
-        self.board_number = "A5"
-        self.timestamps = 200
-        self.delta_window = 10e3
-        self.pix1 = 0
-        self.scale = "linear"
+        self.partial_path = "tests/test_data"
+        self.pixels = (70,)
+        self.daughterboard_number = "NL11"
+        self.motherboard_number = "#33"
+        self.firmware_version = "2212s"
+        self.timestamps = 300
+        self.delta_window = 20e3
+        self.rewrite = True
+        self.range_left = -20e3
+        self.range_right = 20e3
+        self.same_y = False
+        self.app_mask = True
+        self.include_offset = False
 
-    def test_a_collect_ct_positive(self):
-        work_dir = r"{}".format(os.path.realpath(__file__) + "../../..")
-        os.chdir(work_dir)
-        # Test positive case of collect_ct function
-        collect_ct(
-            self.path,
-            self.pixels,
-            self.board_number,
+    def test_collect_dcr_by_file_positive(self):
+        # Test positive case for deltas_save function
+        work_dir = os.path.dirname(os.path.realpath(__file__)) + "/.."
+
+        path = os.path.join(work_dir, self.partial_path)
+        collect_dcr_by_file(
+            path,
+            self.daughterboard_number,
+            self.motherboard_number,
+            self.firmware_version,
             self.timestamps,
-            self.delta_window,
         )
-        # Check if the output file is created and has the correct number of rows
-        file = glob.glob("*CT_data_*.csv*")[0]
-        data = pd.read_csv(file, header=None)
-        self.assertEqual(len(data), 20)
 
-    def test_b_collect_ct_negative(self):
-        work_dir = r"{}".format(os.path.realpath(__file__) + "../../..")
-        os.chdir(work_dir)
-        # Test negative case of collect_ct function
-        with self.assertRaises(TypeError):
-            collect_ct(
-                self.path, self.pixels, 123, self.timestamps, self.delta_window
+        # Check if the csv file is created
+        self.assertTrue(
+            os.path.isfile(
+                os.path.join(
+                    path,
+                    "dcr_data/test_data_2212b-test_data_2212b_dcr_data.pkl",
+                )
             )
+        )
 
-    def test_c_plot_ct_positive(self):
-        # Test positive case of plot_ct function
-        work_dir = r"{}".format(os.path.realpath(__file__) + "../../..")
-        os.chdir(work_dir)
-        plot_ct(self.path, self.pix1, self.scale)
-        # Check if the plot file is created
-        plot_name = "test_data_2212b.dat_test_data_2212b.dat"
-        plot_file = "{plot}_{pix}.png".format(plot=plot_name, pix=self.pix1)
-        self.assertTrue(os.path.exists(plot_file))
+    def test_plot_dcr_histogram_and_stability(self):
 
-    def test_d_plot_ct_negative(self):
-        # Test negative case of plot_ct function
-        with self.assertRaises(FileNotFoundError):
-            plot_ct("nonexistent_folder", self.pix1, self.scale)
+        # Test positive case for deltas_save function
+        work_dir = os.path.dirname(os.path.realpath(__file__)) + "/.."
+
+        path = os.path.join(work_dir, self.partial_path)
+
+        plot_dcr_histogram_and_stability(
+            path,
+        )
+
+        self.assertTrue(
+            os.path.isfile(
+                os.path.join(path, "results/dcr/DCR_stability_graph.png")
+            )
+            and os.path.isfile(
+                os.path.join(path, "results/dcr/DCR_histogram_w_integral.png")
+            )
+        )
+
+    def test_zero_to_cross_talk_collect(self):
+
+        # Test positive case for deltas_save function
+        work_dir = os.path.dirname(os.path.realpath(__file__)) + "/.."
+
+        path = os.path.join(work_dir, self.partial_path)
+
+        zero_to_cross_talk_collect(
+            path,
+            self.pixels,
+            self.rewrite,
+            self.daughterboard_number,
+            self.motherboard_number,
+            self.firmware_version,
+            self.timestamps,
+        )
+
+        # Check if the csv file is created
+        self.assertTrue(
+            os.path.isfile(
+                os.path.join(
+                    path,
+                    "cross_talk_data/test_data_2212b-test_"
+                    "data_2212b_pixels_70-50.feather",
+                )
+            )
+            and os.path.isfile(
+                os.path.join(
+                    path,
+                    "cross_talk_data/test_data_2212b-test_"
+                    "data_2212b_pixels_70-90.feather",
+                )
+            )
+        )
+
+    def test_zero_to_cross_talk_plot(self):
+
+        # Test positive case for deltas_save function
+        work_dir = os.path.dirname(os.path.realpath(__file__)) + "/.."
+
+        path = os.path.join(work_dir, self.partial_path)
+
+        zero_to_cross_talk_plot(
+            path,
+            self.pixels,
+        )
+
+        # Check if the csv file is created
+        self.assertTrue(
+            os.path.isfile(
+                os.path.join(
+                    path,
+                    "ct_vs_distance/Average_cross-talk.png",
+                )
+            )
+        )
 
     def tearDownClass():
         # Clean up after tests
-        os.chdir(r"{}".format(os.path.realpath(__file__) + "/.."))
-        shutil.rmtree("test_data/cross_talk_data")
+        os.chdir(r"{}".format(os.path.dirname(os.path.realpath(__file__))))
+        shutil.rmtree("test_data/dcr_data")
         shutil.rmtree("test_data/results")
-
-
-if __name__ == "__main__":
-    unittest.main()
+        shutil.rmtree("test_data/cross_talk_data")
+        shutil.rmtree("test_data/ct_vs_distance")
+        shutil.rmtree("test_data/senpop_data")

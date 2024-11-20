@@ -129,7 +129,7 @@ dmypy.json
 .pyre/
 
 # .dat data files
-*.dat
+# *.dat
 *.ini
 *.stats
 
@@ -141,3 +141,13 @@ dmypy.json
 
 # Tox
 requirements_dev.txt
+
+# VS Code
+.lprof/settings.json
+
+# 
+src/daplis/params/calibration_data/older/TDC_B7d_#28_2212b.csv
+src/daplis/params/calibration_data/older/TDC_B7d_#28_2212s.csv
+src/daplis/params/calibration_data/older/B7d_#28_2212b_DNL.npy
+src/daplis/params/calibration_data/older/TDC_B7d_#28_2212b_DNL.csv
+tests/test_data/test.feather
