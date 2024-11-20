@@ -3,6 +3,7 @@ import shutil
 import unittest
 
 import numpy as np
+
 from daplis.functions.delta_t import (
     calculate_and_save_timestamp_differences,
     calculate_and_save_timestamp_differences_fast,
@@ -55,11 +56,17 @@ class TestDeltasFull(unittest.TestCase):
             self.include_offset,
         )
 
-        os.chdir(os.path.join(os.path.dirname(os.path.realpath(__file__)), "test_data"))
+        os.chdir(
+            os.path.join(
+                os.path.dirname(os.path.realpath(__file__)), "test_data"
+            )
+        )
 
         # Check if the csv file is created
         self.assertTrue(
-            os.path.isfile("delta_ts_data/test_data_2212b-test_data_2212b.feather")
+            os.path.isfile(
+                "delta_ts_data/test_data_2212b-test_data_2212b.feather"
+            )
         )
 
     def test_a_deltas_save_fast_positive(self):
@@ -82,11 +89,17 @@ class TestDeltasFull(unittest.TestCase):
             include_offset=self.include_offset,
         )
 
-        os.chdir(os.path.join(os.path.dirname(os.path.realpath(__file__)), "test_data"))
+        os.chdir(
+            os.path.join(
+                os.path.dirname(os.path.realpath(__file__)), "test_data"
+            )
+        )
 
         # Check if the csv file is created
         self.assertTrue(
-            os.path.isfile("delta_ts_data/test_data_2212b-test_data_2212b.feather")
+            os.path.isfile(
+                "delta_ts_data/test_data_2212b-test_data_2212b.feather"
+            )
         )
 
     # Negative test case
@@ -130,7 +143,10 @@ class TestDeltasFull(unittest.TestCase):
         # Check if the plot file is created
         self.assertTrue(
             os.path.isfile(
-                "results/delta_t/test_data_2212b-test_data_2212b_delta_t_grid.png"
+                os.path.join(
+                    path,
+                    "results/delta_t/test_data_2212b-test_data_2212b_delta_t_grid.png",
+                )
             )
         )
 
@@ -155,8 +171,11 @@ class TestDeltasFull(unittest.TestCase):
         # Assert that the function runs without raising any exceptions
         self.assertTrue(
             os.path.isfile(
-                "results/fits/test_data_2212b-test_data_2212b_"
-                f"pixels_{pixels[0]},{pixels[1]}_fit.png"
+                os.path.join(
+                    path,
+                    "results/fits/test_data_2212b-test_data_2212b_"
+                    f"pixels_{pixels[0]},{pixels[1]}_fit.png",
+                )
             )
         )
 

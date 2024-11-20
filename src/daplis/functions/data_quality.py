@@ -58,10 +58,11 @@ import numpy as np
 import pandas as pd
 import pyarrow.feather as ft
 import seaborn as sns
-from daplis.functions import unpack as f_up
-from daplis.functions import utils
 from matplotlib import pyplot as plt
 from tqdm import tqdm
+
+from daplis.functions import unpack as f_up
+from daplis.functions import utils
 
 
 def sensor_population_by_cycle(
@@ -165,7 +166,9 @@ def sensor_population_by_cycle(
             include_offset,
             apply_calibration,
         )
-        sensor_population = np.zeros((256, int(len(data[0]) / (timestamps + 1))))
+        sensor_population = np.zeros(
+            (256, int(len(data[0]) / (timestamps + 1)))
+        )
 
     cycle_ends = np.where(data[0].T[1] == -2)[0]
     cycle_ends = np.insert(cycle_ends, 0, 0)
@@ -180,7 +183,9 @@ def sensor_population_by_cycle(
                 continue
             tdc, pix = np.argwhere(pix_coor == k)[0]
             pix_index = np.where(data[tdc].T[0][cycle_indices] == pix)[0]
-            pix_index_pos = np.where(data[tdc].T[1][cycle_indices][pix_index] > 0)[0]
+            pix_index_pos = np.where(
+                data[tdc].T[1][cycle_indices][pix_index] > 0
+            )[0]
 
             sensor_population[k][j] += len(
                 data[tdc].T[1][cycle_indices][pix_index[pix_index_pos]]
@@ -196,7 +201,9 @@ def sensor_population_by_cycle(
     try:
         os.chdir(os.path.join(path, "results", "data_quality", "senpop_cycle"))
     except FileNotFoundError:
-        os.makedirs(os.path.join(path, "results", "data_quality", "senpop_cycle"))
+        os.makedirs(
+            os.path.join(path, "results", "data_quality", "senpop_cycle")
+        )
         os.chdir(os.path.join(path, "results", "data_quality", "senpop_cycle"))
 
     # If cycles are not manually given, find the starting cycle
@@ -205,7 +212,9 @@ def sensor_population_by_cycle(
         pix_peak = np.argmax(sensor_population[:, -1])
         # Find first cycle where height of the peak is above the threshold
         # which can be set to 15 for signal above 3.5 kHz
-        cycle_start = np.where(sensor_population[pix_peak, :] > threshold)[0].min()
+        cycle_start = np.where(sensor_population[pix_peak, :] > threshold)[
+            0
+        ].min()
         cycle_range = [x for x in range(cycle_start - 3, cycle_start + 3)]
 
     plt.rcParams.update({"font.size": 27})
@@ -324,21 +333,29 @@ def pixel_population_by_cycle(
         cycle_ends = np.insert(np.where(data[tdc].T[1] == -2)[0], 0, 0)
 
         for i in range(len(cycle_ends) - 1):
-            cycle_indices = pix[(pix >= cycle_ends[i]) & (pix < cycle_ends[i + 1])]
+            cycle_indices = pix[
+                (pix >= cycle_ends[i]) & (pix < cycle_ends[i + 1])
+            ]
             pixel_pop.append(
                 len(column_data[cycle_indices][column_data[cycle_indices] > 0])
             )
 
     # Moving average of number of timestamps per 100 cycles
-    moving_average = np.convolve(np.array(pixel_pop), np.ones(100) / 100, mode="valid")
+    moving_average = np.convolve(
+        np.array(pixel_pop), np.ones(100) / 100, mode="valid"
+    )
 
     # Plot moving average
-    offset = (100 - 1) // 2  # Offset for aligning moving average with original data
+    offset = (
+        100 - 1
+    ) // 2  # Offset for aligning moving average with original data
 
     try:
         os.chdir(os.path.join(path, "results", "data_quality", "pixpop_cycle"))
     except FileNotFoundError:
-        os.makedirs(os.path.join(path, "results", "data_quality", "pixpop_cycle"))
+        os.makedirs(
+            os.path.join(path, "results", "data_quality", "pixpop_cycle")
+        )
         os.chdir(os.path.join(path, "results", "data_quality", "pixpop_cycle"))
 
     plt.rcParams.update({"font.size": 27})
@@ -356,7 +373,9 @@ def pixel_population_by_cycle(
     plt.title(f"Pixel {pix_to_plot}")
 
     plot_name = (
-        os.path.splitext(files_all[0])[0] + "-" + os.path.splitext(files_all[-1])[0]
+        os.path.splitext(files_all[0])[0]
+        + "-"
+        + os.path.splitext(files_all[-1])[0]
     )
     plt.savefig(f"{plot_name}_{pix_to_plot}.png")
 
@@ -544,7 +563,9 @@ def _extend_spread_range(spread_bins, spread_counts, extension: int):
     )
 
     # Concatenate arrays
-    extended_array = np.concatenate((left_extension, spread_bins, right_extension))
+    extended_array = np.concatenate(
+        (left_extension, spread_bins, right_extension)
+    )
     extended_counts = np.concatenate(
         (np.zeros(extension), spread_counts, np.zeros(extension))
     )
@@ -608,7 +629,9 @@ def sigma_of_count_spread_to_average(
     data_cut = data_cut[(data_cut > range_left) & (data_cut < range_right)]
 
     # Bins in units of 17.857 ps of the average LinoSPAD2 TDC bin width
-    bins = np.arange(np.min(data_cut), np.max(data_cut), 2.5 / 140 * 1e3 * step)
+    bins = np.arange(
+        np.min(data_cut), np.max(data_cut), 2.5 / 140 * 1e3 * step
+    )
 
     counts, bin_edges = np.histogram(data_cut, bins=bins)
 
@@ -665,7 +688,9 @@ def sigma_of_count_spread_to_average(
         label="Fit",
         color="#cc8c32",
     )
-    ax.set_title(f"Ratio of spread to average: {pars[2] / np.mean(counts) * 100:.1f} %")
+    ax.set_title(
+        f"Ratio of spread to average: {pars[2] / np.mean(counts) * 100:.1f} %"
+    )
     ax.set_xlabel("Spread (-)")
     ax.set_ylabel("Counts (-)")
     ax.text(
@@ -674,7 +699,9 @@ def sigma_of_count_spread_to_average(
         f"\u03C3={pars[2]:.2f}\u00B1{np.sqrt(covs[2,2]):.2f}",
         transform=ax.transAxes,
         fontsize=25,
-        bbox=dict(facecolor="white", edgecolor="black", boxstyle="round,pad=0.5"),
+        bbox=dict(
+            facecolor="white", edgecolor="black", boxstyle="round,pad=0.5"
+        ),
     )
     plt.savefig(f"{ft_file_name}_bckg_spread_hist_.png")
 
@@ -737,7 +764,9 @@ def sigma_of_count_spread_to_average_from_ft_file(
     data_cut = data_cut[(data_cut > range_left) & (data_cut < range_right)]
 
     # Bins in units of 17.857 ps of the average LinoSPAD2 TDC bin width
-    bins = np.arange(np.min(data_cut), np.max(data_cut), 2.5 / 140 * 1e3 * step)
+    bins = np.arange(
+        np.min(data_cut), np.max(data_cut), 2.5 / 140 * 1e3 * step
+    )
 
     counts, bin_edges = np.histogram(data_cut, bins=bins)
 
@@ -796,7 +825,9 @@ def sigma_of_count_spread_to_average_from_ft_file(
         label="Fit",
         color="#cc8c32",
     )
-    ax.set_title(f"Ratio of spread to average: {pars[2] / np.mean(counts) * 100:.1f} %")
+    ax.set_title(
+        f"Ratio of spread to average: {pars[2] / np.mean(counts) * 100:.1f} %"
+    )
     ax.set_xlabel("Spread (-)")
     ax.set_ylabel("Counts (-)")
     ax.text(
@@ -805,6 +836,8 @@ def sigma_of_count_spread_to_average_from_ft_file(
         f"\u03C3={pars[2]:.2f}\u00B1{np.sqrt(covs[2,2]):.2f}",
         transform=ax.transAxes,
         fontsize=25,
-        bbox=dict(facecolor="white", edgecolor="black", boxstyle="round,pad=0.5"),
+        bbox=dict(
+            facecolor="white", edgecolor="black", boxstyle="round,pad=0.5"
+        ),
     )
     plt.savefig(f"{ft_file_name}_bckg_spread_hist_.png")

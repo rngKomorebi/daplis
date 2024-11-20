@@ -42,10 +42,14 @@ functions:
     timestamps from a '.feather' file and plot histograms of them
     in a grid. This function should be used for the full sensor
     setup.
+
+    * unpickle_plot - unpickle the '.pkl' file with a delta_t histogram.
+    Can be used to presaved '.pkl' files for fine control over the plot.
 """
 
 import glob
 import os
+import pickle
 import sys
 from math import ceil
 from typing import List
@@ -53,12 +57,13 @@ from warnings import warn
 
 import numpy as np
 import pandas as pd
-from daplis.functions import calc_diff as cd
-from daplis.functions import unpack as f_up
-from daplis.functions import utils
 from matplotlib import pyplot as plt
 from pyarrow import feather as ft
 from tqdm import tqdm
+
+from daplis.functions import calc_diff as cd
+from daplis.functions import unpack as f_up
+from daplis.functions import utils
 
 
 def _flatten(input_list: List):
@@ -86,6 +91,68 @@ def _flatten(input_list: List):
         else:
             flattened.append(item)
     return flattened
+
+
+def _combine_intermediate_feather_files(path: str, skip_data: bool = False):
+    """Combine intermediate '.feather' files into one.
+
+    Find all numbered '.feather' files for the data files found in the
+    path and combine them all into one.
+
+    Parameters
+    ----------
+    path : str
+        Path to the folder with the '.dat' data files.
+    skip_data : bool
+        Switch for skipping the data and working directly in the
+        'delta_ts_data' folder. Can be used when the raw '.dat' files
+        are not available or the data set is incomplete. The default is
+        False.
+
+    Raises
+    ------
+    FileNotFoundError
+        Raised when the folder "delta_ts_data", where timestamp
+        differences are saved, cannot be found in the path.
+    """
+
+    os.chdir(path)
+
+    if not skip_data:
+        files_all = sorted(glob.glob("*.dat*"))
+        if files_all != []:
+            feather_file_name = files_all[0][:-4] + "-" + files_all[-1][:-4]
+            combined_feather_file_name = feather_file_name
+        else:
+            feather_file_name = ""
+            combined_feather_file_name = "combined"
+    else:
+        feather_file_name = ""
+        combined_feather_file_name = "combined"
+
+    try:
+        os.chdir("delta_ts_data")
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            "Folder with saved timestamp differences was not found"
+        )
+
+    file_pattern = f"{feather_file_name}*_*.feather"
+
+    feather_files = glob.glob(file_pattern)
+
+    data_combined = []
+    data_combined = pd.DataFrame(data_combined)
+
+    for ft_file in feather_files:
+        data = ft.read_feather(ft_file)
+
+        data_combined = pd.concat([data_combined, data], ignore_index=True)
+
+        data_combined.to_feather(f"{combined_feather_file_name}.feather")
+
+    for ft_file in feather_files:
+        os.remove(ft_file)
 
 
 def calculate_and_save_timestamp_differences(
@@ -197,7 +264,9 @@ def calculate_and_save_timestamp_differences(
 
     # Parameter type check
     if isinstance(pixels, list) is False:
-        raise TypeError("'pixels' should be a list of integers or a list of two lists")
+        raise TypeError(
+            "'pixels' should be a list of integers or a list of two lists"
+        )
     if isinstance(firmware_version, str) is False:
         raise TypeError(
             "'firmware_version' should be string, '2212s', '2212b' or '2208'"
@@ -222,7 +291,9 @@ def calculate_and_save_timestamp_differences(
     ft_file_number = 0
 
     # Check if the feather file exists and if it should be rewrited
-    feather_file = os.path.join(path, "delta_ts_data", f"{out_file_name}.feather")
+    feather_file = os.path.join(
+        path, "delta_ts_data", f"{out_file_name}.feather"
+    )
 
     # Remove the old '.feather' files with the pattern
     # for ft_file in feather_files:
@@ -313,7 +384,9 @@ def calculate_and_save_timestamp_differences(
                 existing_data = ft.read_feather(feather_file)
 
                 # Append new data to the existing feather file
-                combined_data = pd.concat([existing_data, data_for_plot_df], axis=0)
+                combined_data = pd.concat(
+                    [existing_data, data_for_plot_df], axis=0
+                )
                 ft.write_feather(combined_data, feather_file)
             else:
                 ft_file_number += 1
@@ -326,10 +399,13 @@ def calculate_and_save_timestamp_differences(
         os.chdir("..")
 
     # Combine the numbered feather files into a single one
-    utils.combine_feather_files(path)
+    _combine_intermediate_feather_files(path)
 
     # Check, if the file was created
-    if os.path.isfile(path + f"/delta_ts_data/{out_file_name}.feather") is True:
+    if (
+        os.path.isfile(path + f"/delta_ts_data/{out_file_name}.feather")
+        is True
+    ):
         print(
             "\n> > > Timestamp differences are saved as"
             f"{out_file_name}.feather in "
@@ -417,7 +493,9 @@ def calculate_and_save_timestamp_differences_fast(
     """
     # Parameter type check
     if isinstance(pixels, list) is False:
-        raise TypeError("'pixels' should be a list of integers or a list of two lists")
+        raise TypeError(
+            "'pixels' should be a list of integers or a list of two lists"
+        )
     if isinstance(firmware_version, str) is False:
         raise TypeError(
             "'firmware_version' should be string, '2212s', '2212b' or '2208'"
@@ -442,7 +520,9 @@ def calculate_and_save_timestamp_differences_fast(
     ft_file_number = 0
 
     # Check if the feather file exists and if it should be rewrited
-    feather_file = os.path.join(path, "delta_ts_data", f"{out_file_name}.feather")
+    feather_file = os.path.join(
+        path, "delta_ts_data", f"{out_file_name}.feather"
+    )
 
     # Remove the old '.feather' files with the pattern
     # for ft_file in feather_files:
@@ -528,7 +608,7 @@ def calculate_and_save_timestamp_differences_fast(
         if os.path.isfile(feather_file):
             # Check the size of the existing '.feather', if larger
             # than 100 MB, create new one
-            if os.path.getsize(feather_file) / 1024 / 1024 < 10:
+            if os.path.getsize(feather_file) / 1024 / 1024 < 100:
                 # Load existing feather file
                 existing_data = ft.read_feather(feather_file)
 
@@ -546,10 +626,13 @@ def calculate_and_save_timestamp_differences_fast(
         os.chdir("..")
 
     # Combine the numbered feather files into a single one
-    utils.combine_feather_files(path)
+    _combine_intermediate_feather_files(path)
 
     # Check, if the file was created
-    if os.path.isfile(path + f"/delta_ts_data/{out_file_name}.feather") is True:
+    if (
+        os.path.isfile(path + f"/delta_ts_data/{out_file_name}.feather")
+        is True
+    ):
         print(
             "\n> > > Timestamp differences are saved as"
             f"{out_file_name}.feather in "
@@ -637,7 +720,9 @@ def calculate_and_save_timestamp_differences_full_sensor(
     """
     # parameter type check
     if isinstance(pixels, list) is False:
-        raise TypeError("'pixels' should be a list of integers or a list of two lists")
+        raise TypeError(
+            "'pixels' should be a list of integers or a list of two lists"
+        )
     if isinstance(firmware_version, str) is False:
         raise TypeError(
             "'firmware_version' should be string, '2212s', '2212b' or" "'2208'"
@@ -653,7 +738,9 @@ def calculate_and_save_timestamp_differences_full_sensor(
     try:
         os.chdir(f"{motherboard_number1}")
     except FileNotFoundError as exc:
-        raise FileNotFoundError(f"Data from {motherboard_number1} not found") from exc
+        raise FileNotFoundError(
+            f"Data from {motherboard_number1} not found"
+        ) from exc
     # files_all1 = sorted(glob.glob("*.dat*"))
     files_all1 = glob.glob("*.dat*")
     files_all1.sort(key=os.path.getmtime)
@@ -664,7 +751,9 @@ def calculate_and_save_timestamp_differences_full_sensor(
     try:
         os.chdir(f"{motherboard_number2}")
     except FileNotFoundError as exc:
-        raise FileNotFoundError(f"Data from {motherboard_number2} not found") from exc
+        raise FileNotFoundError(
+            f"Data from {motherboard_number2} not found"
+        ) from exc
     # files_all2 = sorted(glob.glob("*.dat*"))
     files_all2 = glob.glob("*.dat*")
     files_all2.sort(key=os.path.getmtime)
@@ -684,7 +773,9 @@ def calculate_and_save_timestamp_differences_full_sensor(
     # Check if '.feather' file with timestamps differences already
     # exists
 
-    feather_file = os.path.join(path, "delta_ts_data", f"{out_file_name}.feather")
+    feather_file = os.path.join(
+        path, "delta_ts_data", f"{out_file_name}.feather"
+    )
 
     utils.file_rewrite_handling(feather_file, rewrite)
 
@@ -733,7 +824,9 @@ def calculate_and_save_timestamp_differences_full_sensor(
         # abs_tmsp_list1.append(abs_tmsp1)
         # Collect indices of cycle ends (the '-2's)
         cycle_ends1 = np.where(data_all1[0].T[1] == -2)[0]
-        cyc1 = np.argmin(np.abs(cycle_ends1 - np.where(data_all1[:].T[1] > 0)[0].min()))
+        cyc1 = np.argmin(
+            np.abs(cycle_ends1 - np.where(data_all1[:].T[1] > 0)[0].min())
+        )
         if cycle_ends1[cyc1] > np.where(data_all1[:].T[1] > 0)[0].min():
             cyc1 = cyc1 - 1
             cycle_start1 = cycle_ends1[cyc1]
@@ -771,7 +864,9 @@ def calculate_and_save_timestamp_differences_full_sensor(
         # abs_tmsp_list2.append(abs_tmsp2)
         # Collect indices of cycle ends (the '-2's)
         cycle_ends2 = np.where(data_all2[0].T[1] == -2)[0]
-        cyc2 = np.argmin(np.abs(cycle_ends2 - np.where(data_all2[:].T[1] > 0)[0].min()))
+        cyc2 = np.argmin(
+            np.abs(cycle_ends2 - np.where(data_all2[:].T[1] > 0)[0].min())
+        )
         if cycle_ends2[cyc2] > np.where(data_all2[:].T[1] > 0)[0].min():
             cyc2 = cyc2 - 1
             cycle_start2 = cycle_ends2[cyc2]
@@ -830,12 +925,16 @@ def calculate_and_save_timestamp_differences_full_sensor(
         # Get timestamps for both pixels in the given cycle
         for cyc in range(len(cycle_ends1) - 1):
             pix1_ = pix1[
-                np.logical_and(pix1 >= cycle_ends1[cyc], pix1 < cycle_ends1[cyc + 1])
+                np.logical_and(
+                    pix1 >= cycle_ends1[cyc], pix1 < cycle_ends1[cyc + 1]
+                )
             ]
             if not np.any(pix1_):
                 continue
             pix2_ = pix2[
-                np.logical_and(pix2 >= cycle_ends2[cyc], pix2 < cycle_ends2[cyc + 1])
+                np.logical_and(
+                    pix2 >= cycle_ends2[cyc], pix2 < cycle_ends2[cyc + 1]
+                )
             ]
 
             if not np.any(pix2_):
@@ -850,7 +949,9 @@ def calculate_and_save_timestamp_differences_full_sensor(
             for t1 in tmsp1:
                 deltas = tmsp2 - t1
                 ind = np.where(np.abs(deltas) < delta_window)[0]
-                deltas_all[f"{pix_left_peak},{pix_right_peak}"].extend(deltas[ind])
+                deltas_all[f"{pix_left_peak},{pix_right_peak}"].extend(
+                    deltas[ind]
+                )
 
         # Save data to a feather file in a cycle so data is not lost
         # in the case of failure close to the end
@@ -871,7 +972,9 @@ def calculate_and_save_timestamp_differences_full_sensor(
             existing_data = ft.read_feather(feather_file)
 
             # Append new data to the existing Feather file
-            combined_data = pd.concat([existing_data, data_for_plot_df], axis=0)
+            combined_data = pd.concat(
+                [existing_data, data_for_plot_df], axis=0
+            )
             ft.write_feather(combined_data, feather_file)
 
         else:
@@ -881,7 +984,10 @@ def calculate_and_save_timestamp_differences_full_sensor(
         os.chdir("..")
 
     # Check if the file with the results was created
-    if os.path.isfile(os.path.join(path, f"/delta_ts_data/{feather_file}")) is True:
+    if (
+        os.path.isfile(os.path.join(path, f"/delta_ts_data/{feather_file}"))
+        is True
+    ):
         print(
             "\n> > > Timestamp differences are saved as"
             f"{feather_file} in {os.path.join(path, 'delta_ts_data/')} < < <"
@@ -979,7 +1085,9 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
     """
     # parameter type check
     if isinstance(pixels, list) is False:
-        raise TypeError("'pixels' should be a list of integers or a list of two lists")
+        raise TypeError(
+            "'pixels' should be a list of integers or a list of two lists"
+        )
     if isinstance(firmware_version, str) is False:
         raise TypeError(
             "'firmware_version' should be string, '2212s', '2212b' or" "'2208'"
@@ -995,7 +1103,9 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
     try:
         os.chdir(f"{motherboard_number1}")
     except FileNotFoundError as exc:
-        raise FileNotFoundError(f"Data from {motherboard_number1} not found") from exc
+        raise FileNotFoundError(
+            f"Data from {motherboard_number1} not found"
+        ) from exc
     files_all1 = glob.glob("*.dat*")
     files_all1.sort(key=lambda x: os.path.getmtime(x))
     out_file_name = files_all1[0][:-4]
@@ -1005,7 +1115,9 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
     try:
         os.chdir(f"{motherboard_number2}")
     except FileNotFoundError as exc:
-        raise FileNotFoundError(f"Data from {motherboard_number2} not found") from exc
+        raise FileNotFoundError(
+            f"Data from {motherboard_number2} not found"
+        ) from exc
     files_all2 = glob.glob("*.dat*")
     files_all2.sort(key=lambda x: os.path.getmtime(x))
     out_file_name = out_file_name + "-" + files_all2[-1][:-4]
@@ -1023,7 +1135,9 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
 
     # Check if '.feather' file with timestamps differences already
     # exists
-    feather_file = os.path.join(path, "delta_ts_data", f"{out_file_name}.feather")
+    feather_file = os.path.join(
+        path, "delta_ts_data", f"{out_file_name}.feather"
+    )
 
     utils.file_rewrite_handling(feather_file, rewrite)
 
@@ -1139,15 +1253,27 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
             cycle_indices1 = pix1[(pix1 >= ends1[i]) & (pix1 < ends1[i + 1])]
             cycle_indices2 = pix2[(pix2 >= ends1[i]) & (pix2 < ends1[i + 1])]
             pixel_cycle_pop1.append(
-                len(column_data1[cycle_indices1][column_data1[cycle_indices1] > 0])
+                len(
+                    column_data1[cycle_indices1][
+                        column_data1[cycle_indices1] > 0
+                    ]
+                )
             )
             pixel_cycle_pop2.append(
-                len(column_data2[cycle_indices2][column_data2[cycle_indices2] > 0])
+                len(
+                    column_data2[cycle_indices2][
+                        column_data2[cycle_indices2] > 0
+                    ]
+                )
             )
 
         # Find the starting cycle based on the value of threshold
-        cycle_start_index1 = np.where(np.array(pixel_cycle_pop1) > threshold)[0].min()
-        cycle_start_index2 = np.where(np.array(pixel_cycle_pop2) > threshold)[0].min()
+        cycle_start_index1 = np.where(np.array(pixel_cycle_pop1) > threshold)[
+            0
+        ].min()
+        cycle_start_index2 = np.where(np.array(pixel_cycle_pop2) > threshold)[
+            0
+        ].min()
 
         cycle_start1 = cycle_ends1[cycle_start_index1]
         cycle_start2 = cycle_ends2[cycle_start_index2]
@@ -1158,13 +1284,15 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
                 abs_tmsp_list1.append(abs_tmsp1[cycle_start_index1:])
                 abs_tmsp_list2.append(
                     abs_tmsp2[
-                        cycle_start_index2 : -cycle_start_index1 + cycle_start_index2
+                        cycle_start_index2 : -cycle_start_index1
+                        + cycle_start_index2
                     ]
                 )
             else:
                 abs_tmsp_list1.append(
                     abs_tmsp1[
-                        cycle_start_index1 : -cycle_start_index2 + cycle_start_index1
+                        cycle_start_index1 : -cycle_start_index2
+                        + cycle_start_index1
                     ]
                 )
                 abs_tmsp_list2.append(abs_tmsp2[cycle_start_index2:])
@@ -1192,12 +1320,16 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
         # Get timestamps for both pixels in the given cycle
         for cyc in range(len(cycle_ends1) - 1):
             pix1_ = pix1[
-                np.logical_and(pix1 >= cycle_ends1[cyc], pix1 < cycle_ends1[cyc + 1])
+                np.logical_and(
+                    pix1 >= cycle_ends1[cyc], pix1 < cycle_ends1[cyc + 1]
+                )
             ]
             if not np.any(pix1_):
                 continue
             pix2_ = pix2[
-                np.logical_and(pix2 >= cycle_ends2[cyc], pix2 < cycle_ends2[cyc + 1])
+                np.logical_and(
+                    pix2 >= cycle_ends2[cyc], pix2 < cycle_ends2[cyc + 1]
+                )
             ]
 
             if not np.any(pix2_):
@@ -1212,7 +1344,9 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
             for t1 in tmsp1:
                 deltas = tmsp2 - t1
                 ind = np.where(np.abs(deltas) < delta_window)[0]
-                deltas_all[f"{pix_left_peak},{pix_right_peak}"].extend(deltas[ind])
+                deltas_all[f"{pix_left_peak},{pix_right_peak}"].extend(
+                    deltas[ind]
+                )
 
         # Save data to a feather file in a cycle so data is not lost
         # in the case of failure close to the end
@@ -1233,7 +1367,9 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
             existing_data = ft.read_feather(feather_file)
 
             # Append new data to the existing Feather file
-            combined_data = pd.concat([existing_data, data_for_plot_df], axis=0)
+            combined_data = pd.concat(
+                [existing_data, data_for_plot_df], axis=0
+            )
             ft.write_feather(combined_data, feather_file)
 
         else:
@@ -1243,7 +1379,10 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
         os.chdir("..")
 
     # Check if the file with the results was created
-    if os.path.isfile(os.path.join(path, f"/delta_ts_data/{feather_file}")) is True:
+    if (
+        os.path.isfile(os.path.join(path, f"/delta_ts_data/{feather_file}"))
+        is True
+    ):
         print(
             "\n> > > Timestamp differences are saved as"
             f"{feather_file} in {os.path.join(path, 'delta_ts_data/')} < < <"
@@ -1265,6 +1404,7 @@ def collect_and_plot_timestamp_differences(
     same_y: bool = False,
     color: str = "rebeccapurple",
     correct_pix_address: bool = False,
+    pickle_figure: bool = False,
 ):
     """Collect and plot timestamp differences from a '.feather' file.
 
@@ -1305,6 +1445,9 @@ def collect_and_plot_timestamp_differences(
     correct_pix_address : bool, optional
         Correct pixel address for the sensor half on side 23 of the
         daughterboard. The default is False.
+    pickle_figure : bool, optional
+        Switch for pickling the plot. Can be used to extract the plot
+        data. The default is False.
 
     Raises
     ------
@@ -1345,7 +1488,9 @@ def collect_and_plot_timestamp_differences(
         except FileNotFoundError:
             pass
 
-    print("\n> > > Plotting timestamps differences as a grid of histograms < < <")
+    print(
+        "\n> > > Plotting timestamps differences as a grid of histograms < < <"
+    )
 
     plt.rcParams.update({"font.size": 27})
     # In the case two lists given - the left and right peaks - _flatten
@@ -1494,7 +1639,19 @@ def collect_and_plot_timestamp_differences(
                 os.chdir("results/delta_t")
             fig.tight_layout()  # for perfect spacing between the plots
             plt.savefig(f"{feather_file_name}_delta_t_grid.png")
-            os.chdir("../..")
+
+            os.chdir(path)
+
+    # Pickle the figure if requested
+    try:
+        os.chdir("results/delta_t")
+    except FileNotFoundError:
+        os.makedirs("results/delta_t")
+        os.chdir("results/delta_t")
+
+    if pickle_figure:
+        with open(f"{feather_file_name}_delta_t_grid.pkl", "wb") as f:
+            pickle.dump(fig, f)
 
     print(
         "\n> > > Plot is saved as {file} in {path}< < <".format(
@@ -1589,12 +1746,16 @@ def collect_and_plot_timestamp_differences_from_ft_file(
                     "exists and will be rewritten ! ! !\n"
                 )
             else:
-                sys.exit("\nPlot already exists, 'rewrite' set to 'False', exiting.")
+                sys.exit(
+                    "\nPlot already exists, 'rewrite' set to 'False', exiting."
+                )
         os.chdir("../..")
     except FileNotFoundError:
         pass
 
-    print("\n> > > Plotting timestamps differences as a grid of histograms < < <")
+    print(
+        "\n> > > Plotting timestamps differences as a grid of histograms < < <"
+    )
 
     plt.rcParams.update({"font.size": 27})
     # In the case two lists given - the left and right peaks - _flatten
@@ -1826,7 +1987,9 @@ def collect_and_plot_timestamp_differences_full_sensor(
                     "exists and will be rewritten ! ! !\n"
                 )
             else:
-                sys.exit("\nPlot already exists, 'rewrite' set to 'False', exiting.")
+                sys.exit(
+                    "\nPlot already exists, 'rewrite' set to 'False', exiting."
+                )
 
         elif os.path.isfile(f"{feather_file_name2}_delta_t_grid.png"):
             if rewrite is True:
@@ -1835,13 +1998,17 @@ def collect_and_plot_timestamp_differences_full_sensor(
                     "exists and will be rewritten ! ! !\n"
                 )
             else:
-                sys.exit("\nPlot already exists, 'rewrite' set to 'False', exiting.")
+                sys.exit(
+                    "\nPlot already exists, 'rewrite' set to 'False', exiting."
+                )
 
         # os.chdir("../..")
     except FileNotFoundError:
         pass
 
-    print("\n> > > Plotting timestamps differences as a grid of histograms < < <")
+    print(
+        "\n> > > Plotting timestamps differences as a grid of histograms < < <"
+    )
 
     plt.rcParams.update({"font.size": 27})
     # Prepare the grid for the plots based on the number of pixels
@@ -1885,7 +2052,9 @@ def collect_and_plot_timestamp_differences_full_sensor(
             # Read data from Feather file
             try:
                 data_to_plot = ft.read_feather(
-                    os.path.join(path, f"delta_ts_data/{feather_file_name}.feather"),
+                    os.path.join(
+                        path, f"delta_ts_data/{feather_file_name}.feather"
+                    ),
                     columns=[f"{pixels[q]},{pixels[w]}"],
                 ).dropna()
             except ValueError:
@@ -1973,7 +2142,9 @@ def collect_and_plot_timestamp_differences_full_sensor(
                 os.makedirs("results/delta_t")
                 os.chdir("results/delta_t")
             fig.tight_layout()  # for perfect spacing between the plots
-            plt.savefig("{name}_delta_t_grid.png".format(name=feather_file_name))
+            plt.savefig(
+                "{name}_delta_t_grid.png".format(name=feather_file_name)
+            )
             os.chdir("../..")
 
     print(
@@ -1982,3 +2153,61 @@ def collect_and_plot_timestamp_differences_full_sensor(
             path=path + "/results/delta_t",
         )
     )
+
+
+def unpickle_plot(delta_t_pickle_file: str) -> dict:
+    """Unpickle a saved figure and return plot data.
+
+    Load a pickled figure, extract and return the data for each subplot
+    found.
+
+    Parameters
+    ----------
+    delta_t_pickle_file : str
+        The absolute path to the pickle file with the histogram plot.
+
+    Returns
+    -------
+    tuple
+        A tuple containing:
+        - fig (matplotlib.figure.Figure): The unpickled figure object.
+        - plot_data (dict): A dictionary with keys "Histogram_i,j" where
+        i,j are the pixels that were used for the particular histogram
+        where each value is a tuple of x and y data for the
+        corresponding bar plot.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the specified pickle file does not exist, a FileNotFoundError
+        is raised and an error message is printed.
+    """
+
+    # Unpickle the plot from '.pkl' file
+    try:
+        with open(delta_t_pickle_file, "rb") as f:
+            fig = pickle.load(f)
+    except FileNotFoundError as e:
+        print(f"{e}")
+
+    # Get the axes from the plot
+    axes = fig.axes
+
+    # Go over axes if there are any
+    if len(axes) > 0:
+        plot_data = {}
+        for _, ax in enumerate(axes):
+            if ax.containers:
+                histogram_label = ax.get_title().split(" ")[1]
+                bar_container = ax.containers[0]
+                x = [
+                    bar.get_x() + bar.get_width() / 2 for bar in bar_container
+                ]
+                # x = [bar.get_x() for bar in bar_container]
+                y = [bar.get_height() for bar in bar_container]
+                plot_data[f"Histogram_{histogram_label}"] = (x, y)
+
+    if plot_data != {}:
+        return fig, plot_data
+    else:
+        return fig

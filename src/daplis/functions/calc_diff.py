@@ -22,10 +22,12 @@ from warnings import warn
 
 import numpy as np
 import pandas as pd
-from daplis.functions import utils
 from numpy import ndarray
 
+from daplis.functions import utils
 
+
+# TODO remove - deprecated
 def calculate_differences_2212(
     data: List[float],
     pixels: List[int] | List[List[int]],
@@ -213,8 +215,12 @@ def calculate_differences_2212_fast(
 
             # Dataframe for each pixel with pixel indicator and
             # timestamps
-            df1 = pd.DataFrame(pix1_data.T, columns=["Pixel_index", "Timestamp"])
-            df2 = pd.DataFrame(pix2_data.T, columns=["Pixel_index", "Timestamp"])
+            df1 = pd.DataFrame(
+                pix1_data.T, columns=["Pixel_index", "Timestamp"]
+            )
+            df2 = pd.DataFrame(
+                pix2_data.T, columns=["Pixel_index", "Timestamp"]
+            )
 
             # Combine the two dataframes
             df_combined = pd.concat((df1, df2), ignore_index=True)
@@ -237,12 +243,14 @@ def calculate_differences_2212_fast(
 
             # Collect timestamp differences where timestamps are from
             # different pixels
-            filtered_df = df_combined[abs(df_combined["Pixel_index_diff"]) == 1]
+            filtered_df = df_combined[
+                abs(df_combined["Pixel_index_diff"]) == 1
+            ]
 
             # Save only timestamps differences in the requested window
-            delta_ts = filtered_df[abs(filtered_df["Timestamp_diff"]) < delta_window][
-                "Timestamp_diff"
-            ].values
+            delta_ts = filtered_df[
+                abs(filtered_df["Timestamp_diff"]) < delta_window
+            ]["Timestamp_diff"].values
 
             deltas_all[f"{q},{w}"].extend(delta_ts)
 

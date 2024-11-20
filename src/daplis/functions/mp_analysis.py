@@ -35,10 +35,11 @@ from zipfile import ZipFile
 
 import numpy as np
 import pandas as pd
+from pyarrow import feather as ft
+
 from daplis.functions import calc_diff as cd
 from daplis.functions import unpack as f_up
 from daplis.functions import utils
-from pyarrow import feather as ft
 
 # from tqdm import tqdm
 
@@ -146,7 +147,9 @@ def _calculate_timestamps_differences(
             pixels = [pix for pix in data_params.pixels if pix not in mask]
         else:
             pixels = [pix for pix in data_params.pixels[0] if pix not in mask]
-            pixels.extend(pix for pix in data_params.pixels[1] if pix not in mask)
+            pixels.extend(
+                pix for pix in data_params.pixels[1] if pix not in mask
+            )
 
     deltas_all = {}
 
@@ -261,7 +264,9 @@ def _calculate_timestamps_differences_full_sensor(
     deltas_all = {}
 
     # First board, unpack data
-    os.chdir(os.path.join(data_params.path, f"{data_params.motherboard_number1}"))
+    os.chdir(
+        os.path.join(data_params.path, f"{data_params.motherboard_number1}")
+    )
 
     if not data_params.absolute_timestamps:
         data_all1 = f_up.unpack_binary_data(
@@ -290,14 +295,18 @@ def _calculate_timestamps_differences_full_sensor(
 
     # Collect indices of cycle ends (the '-2's)
     cycle_ends1 = np.where(data_all1[0].T[1] == -2)[0]
-    cyc1 = np.argmin(np.abs(cycle_ends1 - np.where(data_all1[:].T[1] > 0)[0].min()))
+    cyc1 = np.argmin(
+        np.abs(cycle_ends1 - np.where(data_all1[:].T[1] > 0)[0].min())
+    )
     if cycle_ends1[cyc1] > np.where(data_all1[:].T[1] > 0)[0].min():
         cycle_start1 = cycle_ends1[cyc1 - 1]
     else:
         cycle_start1 = cycle_ends1[cyc1]
 
     # Second board, unpack data
-    os.chdir(os.path.join(data_params.path, f"{data_params.motherboard_number2}"))
+    os.chdir(
+        os.path.join(data_params.path, f"{data_params.motherboard_number2}")
+    )
 
     if not data_params.absolute_timestamps:
         data_all2 = f_up.unpack_binary_data(
@@ -326,7 +335,9 @@ def _calculate_timestamps_differences_full_sensor(
 
     # Collect indices of cycle ends (the '-2's)
     cycle_ends2 = np.where(data_all2[0].T[1] == -2)[0]
-    cyc2 = np.argmin(np.abs(cycle_ends2 - np.where(data_all2[:].T[1] > 0)[0].min()))
+    cyc2 = np.argmin(
+        np.abs(cycle_ends2 - np.where(data_all2[:].T[1] > 0)[0].min())
+    )
     if cycle_ends2[cyc2] > np.where(data_all2[:].T[1] > 0)[0].min():
         cycle_start2 = cycle_ends2[cyc2 - 1]
     else:
@@ -373,12 +384,16 @@ def _calculate_timestamps_differences_full_sensor(
     # Get timestamps for both pixels in the given cycle
     for cyc in range(len(cycle_ends1) - 1):
         pix1_ = pix1[
-            np.logical_and(pix1 >= cycle_ends1[cyc], pix1 < cycle_ends1[cyc + 1])
+            np.logical_and(
+                pix1 >= cycle_ends1[cyc], pix1 < cycle_ends1[cyc + 1]
+            )
         ]
         if not np.any(pix1_):
             continue
         pix2_ = pix2[
-            np.logical_and(pix2 >= cycle_ends2[cyc], pix2 < cycle_ends2[cyc + 1])
+            np.logical_and(
+                pix2 >= cycle_ends2[cyc], pix2 < cycle_ends2[cyc + 1]
+            )
         ]
 
         if not np.any(pix2_):
@@ -475,7 +490,9 @@ def _write_results_to_txt(result_queue_txt, txt_file, lock) -> None:
         # Use a lock to prevent conflicts when writing to the file
         with lock:
             if os.path.exists(txt_file):
-                existing_data = np.genfromtxt(txt_file, delimiter="\t", dtype=int)
+                existing_data = np.genfromtxt(
+                    txt_file, delimiter="\t", dtype=int
+                )
                 combined_data = existing_data + result_df
             else:
                 combined_data = result_df.copy()
@@ -561,7 +578,9 @@ def calculate_and_save_timestamp_differences_mp(
     """
     # parameter type check
     if isinstance(pixels, list) is False:
-        raise TypeError("'pixels' should be a list of integers or a list of two lists")
+        raise TypeError(
+            "'pixels' should be a list of integers or a list of two lists"
+        )
     if isinstance(firmware_version, str) is False:
         raise TypeError(
             "'firmware_version' should be string, '2212s', '2212b' or '2208'"
@@ -716,7 +735,9 @@ def calculate_and_save_timestamp_differences_full_sensor_mp(
     """
     # parameter type check
     if isinstance(pixels, list) is False:
-        raise TypeError("'pixels' should be a list of integers or a list of two lists")
+        raise TypeError(
+            "'pixels' should be a list of integers or a list of two lists"
+        )
     if isinstance(firmware_version, str) is False:
         raise TypeError(
             "'firmware_version' should be string, '2212s', '2212b' or '2208'"
@@ -746,7 +767,9 @@ def calculate_and_save_timestamp_differences_full_sensor_mp(
     try:
         os.chdir(os.path.join(path, f"{motherboard_number1}"))
     except FileNotFoundError as exc:
-        raise FileNotFoundError(f"Data from {motherboard_number1} not found") from exc
+        raise FileNotFoundError(
+            f"Data from {motherboard_number1} not found"
+        ) from exc
     # files_all1 = sorted(glob.glob("*.dat*"))
     files_all1 = glob.glob("*.dat*")
     files_all1.sort(key=os.path.getmtime)
@@ -757,7 +780,9 @@ def calculate_and_save_timestamp_differences_full_sensor_mp(
         # os.chdir(f"{motherboard_number2}")
         os.chdir(os.path.join(path, f"{motherboard_number2}"))
     except FileNotFoundError as exc:
-        raise FileNotFoundError(f"Data from {motherboard_number2} not found") from exc
+        raise FileNotFoundError(
+            f"Data from {motherboard_number2} not found"
+        ) from exc
     # files_all2 = sorted(glob.glob("*.dat*"))
     files_all2 = glob.glob("*.dat*")
     files_all2.sort(key=os.path.getmtime)
@@ -971,7 +996,9 @@ def compact_share_mp(
 
     # parameter type check
     if isinstance(pixels, list) is False:
-        raise TypeError("'pixels' should be a list of integers or a list of two lists")
+        raise TypeError(
+            "'pixels' should be a list of integers or a list of two lists"
+        )
     if isinstance(firmware_version, str) is False:
         raise TypeError(
             "'firmware_version' should be string, '2212s', '2212b' or '2208'"

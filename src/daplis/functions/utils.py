@@ -41,11 +41,11 @@ functions:
 
 """
 
-import glob
 import os
 import pickle
 import sys
 import time
+from glob import glob
 from typing import List
 
 import matplotlib
@@ -81,7 +81,7 @@ def apply_mask(
         "masks",
     )
     os.chdir(path_to_mask)
-    file_mask = glob.glob(f"*{daughterboard_number}_{motherboard_number}*")[0]
+    file_mask = glob(f"*{daughterboard_number}_{motherboard_number}*")[0]
     mask = np.genfromtxt(file_mask).astype(int)
     os.chdir(path_to_back)
 
@@ -123,7 +123,7 @@ def unpickle_plot(path: str, plot_type: str, interactive: bool = True) -> None:
         )
 
     os.chdir(path)
-    files = glob.glob("*.dat*")
+    files = glob("*.dat*")
     plot_name = files[0][:-4] + "-" + files[-1][:-4]
 
     os.chdir(f"results/{plot_type}")
@@ -370,63 +370,44 @@ def error_propagation_division(x, sigma_x, y, sigma_y, rho_xy=0):
     return sigma_f
 
 
-def combine_feather_files(path: str, skip_data: bool = False):
-    """Combine ".feather" files into one.
+def combine_feather_files(path: str, return_data: bool = False):
+    """Find all '.feather' files in the folder and combine into one.
 
-    Find all numbered ".feather" files for the data files found in the
-    path and combine them all into one.
+    Unpacks the data from each '.feather' file found in the folder,
+    concatenates them in a loop, and saved as a 'combined.feather' file.
+    In successful runs, the pre-existing 'combined.feather' file is
+    ignored and is rewritten. Can be used to combine multiple '.feather'
+    files into a single one.
 
     Parameters
     ----------
     path : str
-        Path to the folder with the '.dat' data files.
-    skip_data : bool
-        Switch for skipping the data and working directly in the
-        'delta_ts_data' folder. Can be used when the raw '.dat' files
-        are not available or the data set is incomplete. The default is
-        False.
+        Path to the folder with the '.feather' files that need to be
+        combined.
+    return_data : bool, optional
+        Switch for returning the combined dataframe, by default False.
 
-    Raises
-    ------
-    FileNotFoundError
-        Raised when the folder "delta_ts_data", where timestamp
-        differences are saved, cannot be found in the path.
+    Returns
+    -------
+    pandas.DataFrame
+        Pandas dataframe with the combined data from all '.feather'
+        files found in the folder. Returned only if requested via the
+        'return_data' parameter.
     """
-
     os.chdir(path)
 
-    if not skip_data:
-        files_all = sorted(glob.glob("*.dat*"))
-        if files_all != []:
-            feather_file_name = files_all[0][:-4] + "-" + files_all[-1][:-4]
-            combined_feather_file_name = feather_file_name
-        else:
-            feather_file_name = ""
-            combined_feather_file_name = "combined"
-    else:
-        feather_file_name = ""
-        combined_feather_file_name = "combined"
+    ft_files = glob("*.feather")
 
-    try:
-        os.chdir("delta_ts_data")
-    except FileNotFoundError:
-        raise FileNotFoundError(
-            "Folder with saved timestamp differences was not found"
-        )
+    if "combined.feather" in ft_files:
+        ft_files.remove("combined.feather")
 
-    file_pattern = f"{feather_file_name}*_*.feather"
+    data_all = pd.DataFrame()
 
-    feather_files = glob.glob(file_pattern)
+    for file in ft_files:
+        data = ft.read_feather(file)
+        data_all = pd.concat((data_all, data), ignore_index=True)
 
-    data_combined = []
-    data_combined = pd.DataFrame(data_combined)
+    data_all.to_feather("combined.feather")
 
-    for ft_file in feather_files:
-        data = ft.read_feather(ft_file)
-
-        data_combined = pd.concat([data_combined, data], ignore_index=True)
-
-        data_combined.to_feather(f"{combined_feather_file_name}.feather")
-
-    for ft_file in feather_files:
-        os.remove(ft_file)
+    if return_data:
+        return data_all

@@ -30,15 +30,15 @@ import sys
 from typing import List
 
 import numpy as np
-from daplis.functions import unpack as f_up
-from daplis.functions import utils
 from matplotlib import pyplot as plt
 from scipy.optimize import curve_fit
 from scipy.signal import find_peaks
 from tqdm import tqdm
 
+from daplis.functions import unpack as f_up
+from daplis.functions import utils
 
-# TODO inc offset and apply calibration - remove
+
 def collect_data_and_apply_mask(
     files: List[str],
     daughterboard_number: str,
@@ -142,7 +142,12 @@ def collect_data_and_apply_mask(
     acq_window_length = np.max(data[:].T[1]) * 1e-12
     number_of_cycles = len(np.where(data[0].T[0] == -2)[0])
 
-    rates = timestamps_per_pixel / acq_window_length / number_of_cycles / len(files)
+    rates = (
+        timestamps_per_pixel
+        / acq_window_length
+        / number_of_cycles
+        / len(files)
+    )
 
     if save_to_file:
         files.sort(key=os.path.getmtime)
@@ -170,7 +175,7 @@ def plot_single_pix_hist(
     firmware_version: str,
     timestamps: int = 512,
     cycle_length: float = 4e9,
-    step: int = 1e6,
+    multiplier: int = 1e6,
     show_fig: bool = False,
     fit_average: bool = False,
     color: str = "teal",
@@ -197,7 +202,7 @@ def plot_single_pix_hist(
         default is 512.
     cycle_length : float, optional
         Length of the data acquisition cycle. The default is 4e9, or 4 ms.
-    step : int, optional
+    multiplier : int, optional
         Multiplier of 17.857 for the bin size of the histogram. The
         default is 1e6.
     show_fig : bool, optional
@@ -250,7 +255,9 @@ def plot_single_pix_hist(
             apply_calibration=False,
         )
 
-        bins = np.arange(0, cycle_length, 2500 / 140 * step)  # bin size of 17.867 us
+        bins = np.arange(
+            0, cycle_length, 2500 / 140 * multiplier
+        )  # bin size of 17.867 us
 
         if pixels is None:
             pixels = np.arange(145, 165, 1)
@@ -411,9 +418,13 @@ def plot_sensor_population(
     """
     # parameter type check
     if not isinstance(firmware_version, str):
-        raise TypeError("'firmware_version' should be a string, '2212b' or '2212s'")
+        raise TypeError(
+            "'firmware_version' should be a string, '2212b' or '2212s'"
+        )
     if not isinstance(daughterboard_number, str):
-        raise TypeError("'daughterboard_number' should be a string, 'NL11' or 'A5'")
+        raise TypeError(
+            "'daughterboard_number' should be a string, 'NL11' or 'A5'"
+        )
     if not isinstance(motherboard_number, str):
         raise TypeError("'motherboard_number' should be a string")
     if show_fig:
@@ -487,7 +498,9 @@ def plot_sensor_population(
 
         print("Fitting the peaks with gaussian")
         for peak_index in peaks:
-            x_fit = np.arange(peak_index - fit_width, peak_index + fit_width + 1)
+            x_fit = np.arange(
+                peak_index - fit_width, peak_index + fit_width + 1
+            )
             cut_above_256 = np.where(x_fit >= 256)[0]
             x_fit = np.delete(x_fit, cut_above_256)
             y_fit = timestamps_per_pixel[x_fit]
@@ -524,7 +537,8 @@ def plot_sensor_population(
     else:
         plt.savefig(f"{plot_name}.png")
         print(
-            f"> > > The plot is saved as '{plot_name}.png' " f"in {os.getcwd()} < < <"
+            f"> > > The plot is saved as '{plot_name}.png' "
+            f"in {os.getcwd()} < < <"
         )
         if pickle_fig:
             pickle.dump(fig, open(f"{plot_name}.pickle", "wb"))
@@ -780,9 +794,13 @@ def plot_sensor_population_full_sensor(
     """
     # parameter type check
     if not isinstance(firmware_version, str):
-        raise TypeError("'firmware_version' should be a string, '2212b' or '2212s'")
+        raise TypeError(
+            "'firmware_version' should be a string, '2212b' or '2212s'"
+        )
     if not isinstance(daughterboard_number, str):
-        raise TypeError("'daughterboard_number' should be a string, 'NL11' or 'A5'")
+        raise TypeError(
+            "'daughterboard_number' should be a string, 'NL11' or 'A5'"
+        )
     if not isinstance(motherboard_number1, str):
         raise TypeError("'motherboard_number1' should be a string")
     if not isinstance(motherboard_number2, str):
@@ -880,7 +898,9 @@ def plot_sensor_population_full_sensor(
         peaks = np.unique(peaks)
 
         for peak_index in tqdm(peaks, desc="Fitting Gaussians"):
-            x_fit = np.arange(peak_index - fit_width, peak_index + fit_width + 1)
+            x_fit = np.arange(
+                peak_index - fit_width, peak_index + fit_width + 1
+            )
             y_fit = valid_per_pixel[x_fit]
             try:
                 params, _ = utils.fit_gaussian(x_fit, y_fit)
@@ -908,7 +928,10 @@ def plot_sensor_population_full_sensor(
         os.chdir("results/sensor_population")
     fig.tight_layout()
     plt.savefig("{}.png".format(plot_name))
-    print(f"> > > The plot is saved as '{plot_name}.png' " f"in {os.getcwd()} < < <")
+    print(
+        f"> > > The plot is saved as '{plot_name}.png' "
+        f"in {os.getcwd()} < < <"
+    )
     if pickle_fig:
         pickle.dump(fig, open(f"{plot_name}.pickle", "wb"))
 

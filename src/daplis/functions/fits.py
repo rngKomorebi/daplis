@@ -20,7 +20,7 @@ functions:
     the standard deviation, mean value, and contrast, together with
     residuals and signal-to-noise ratio (SNR) defined as a ratio of peak
     height to standard deviation of background.
-    
+
     * unpickle_fit - unpickle the '.pkl' file, show the plot, and
     return the plot data for each line found (histogram, fit 1, fit 2, 
     etc.).
@@ -35,12 +35,13 @@ from typing import List
 
 import numpy as np
 import pandas as pd
-from daplis.functions import utils
 from lmfit.models import GaussianModel, LinearModel
 from matplotlib import pyplot as plt
 from pandas import DataFrame
 from pyarrow import feather as ft
 from scipy import signal as sg
+
+from daplis.functions import utils
 
 
 # TODO
@@ -61,8 +62,8 @@ def fit_with_gaussian(
 
     Fits timestamp differences of a pair of pixels with Gaussian
     function and plots it next to the histogram of the differences.
-    Timestamp differences are collected from a '.feather' file with
-    those if such exists.
+    Timestamp differences are collected from a '.feather' file if it
+    exists.
 
     Parameters
     ----------
@@ -103,11 +104,11 @@ def fit_with_gaussian(
     Raises
     ------
     FileNotFoundError
-        Raised when no '.dat' data files are found.
+        Raised if no '.dat' data files are found.
     FileNotFoundError
-        Raised when no '.feather' file with timestamp differences is found.
+        Raised if no '.feather' file with timestamp differences is found.
     ValueError
-        Raised when no data for the requested pair of pixels was found
+        Raised if no data for the requested pair of pixels is found
         in the '.feather' file.
 
     Returns
@@ -158,14 +159,20 @@ def fit_with_gaussian(
 
             # Check if there any finite values
             if not np.any(~np.isnan(data_to_plot)):
-                raise ValueError("\nNo data for the requested pixel pair available")
+                raise ValueError(
+                    "\nNo data for the requested pixel pair available"
+                )
 
             data_to_plot = data_to_plot.dropna()
             data_to_plot = np.array(data_to_plot)
 
             # Use the given window for trimming the data for fitting
-            data_to_plot = np.delete(data_to_plot, np.argwhere(data_to_plot < -window))
-            data_to_plot = np.delete(data_to_plot, np.argwhere(data_to_plot > window))
+            data_to_plot = np.delete(
+                data_to_plot, np.argwhere(data_to_plot < -window)
+            )
+            data_to_plot = np.delete(
+                data_to_plot, np.argwhere(data_to_plot > window)
+            )
 
             os.chdir(path)
             plt.rcParams.update({"font.size": 27})
@@ -424,14 +431,20 @@ def fit_with_gaussian_all(
 
             # Check if there any finite values
             if not np.any(~np.isnan(data_to_plot)):
-                raise ValueError("\nNo data for the requested pixel pair available")
+                raise ValueError(
+                    "\nNo data for the requested pixel pair available"
+                )
 
             data_to_plot = data_to_plot.dropna()
             data_to_plot = np.array(data_to_plot)
 
             # Use the given window for trimming the data for fitting
-            data_to_plot = np.delete(data_to_plot, np.argwhere(data_to_plot < -window))
-            data_to_plot = np.delete(data_to_plot, np.argwhere(data_to_plot > window))
+            data_to_plot = np.delete(
+                data_to_plot, np.argwhere(data_to_plot < -window)
+            )
+            data_to_plot = np.delete(
+                data_to_plot, np.argwhere(data_to_plot > window)
+            )
 
             os.chdir(path)
             plt.rcParams.update({"font.size": 27})
@@ -449,7 +462,9 @@ def fit_with_gaussian_all(
 
             bin_c = (b - (b[1] - b[0]) / 2)[1:]
 
-            peak_pos = sg.find_peaks(n, height=np.median(n) * threshold_multiplier)[0]
+            peak_pos = sg.find_peaks(
+                n, height=np.median(n) * threshold_multiplier
+            )[0]
 
             fig = plt.figure(figsize=(16, 10))
             plt.xlabel(r"$\Delta$t (ps)")
@@ -523,12 +538,16 @@ def fit_with_gaussian_all(
 
                 counts, bin_edges = np.histogram(data_to_fit, bins)
 
-                bin_centers = (bin_edges - (bin_edges[1] - bin_edges[0]) / 2)[1:]
+                bin_centers = (bin_edges - (bin_edges[1] - bin_edges[0]) / 2)[
+                    1:
+                ]
 
                 par, pcov = utils.fit_gaussian(bin_centers, counts)
 
                 # Interpolate for smoother fit plot
-                to_fit_n1 = utils.gaussian(bin_centers, par[0], par[1], par[2], par[3])
+                to_fit_n1 = utils.gaussian(
+                    bin_centers, par[0], par[1], par[2], par[3]
+                )
 
                 perr = np.sqrt(np.diag(pcov))
 
@@ -605,7 +624,9 @@ def fit_with_gaussian_all(
                 os.makedirs("results/fits")
                 os.chdir("results/fits")
 
-            plt.savefig(f"{file_name}_pixels_{pix_left},{pix_right}_all_fit.png")
+            plt.savefig(
+                f"{file_name}_pixels_{pix_left},{pix_right}_all_fit.png"
+            )
 
             # Pickle the figure if requested
             if pickle_figure:
@@ -776,7 +797,9 @@ def fit_with_gaussian_full_sensor(
 
     perr = np.sqrt(np.diag(pcov))
     contrast = par[0] / par[3] * 100
-    contrast_error = utils.error_propagation_division(par[0], perr[0], par[3], perr[3])
+    contrast_error = utils.error_propagation_division(
+        par[0], perr[0], par[3], perr[3]
+    )
 
     # Contrast error in %
     contrast_error = contrast_error * 100
@@ -813,7 +836,8 @@ def fit_with_gaussian_full_sensor(
     plt.legend(loc="best")
     if title_on is True:
         plt.title(
-            "Gaussian fit of delta t histogram, pixels " f"{pix_pair[0]}, {pix_pair[1]}"
+            "Gaussian fit of delta t histogram, pixels "
+            f"{pix_pair[0]}, {pix_pair[1]}"
         )
 
     try:
@@ -824,7 +848,9 @@ def fit_with_gaussian_full_sensor(
 
     fig.tight_layout()  # for perfect spacing between the plots
 
-    plt.savefig(f"{feather_file_name}_pixels_{pix_pair[0]},{pix_pair[1]}_fit.png")
+    plt.savefig(
+        f"{feather_file_name}_pixels_{pix_pair[0]},{pix_pair[1]}_fit.png"
+    )
 
     plt.pause(0.1)
     os.chdir("../..")
@@ -965,7 +991,8 @@ def fit_with_gaussian_fancy(
 
             # Select background data for SNR calculation
             data_bckg = data_to_plot[
-                (data_to_plot > range_right) & (data_to_plot < range_right + 10e3)
+                (data_to_plot > range_right)
+                & (data_to_plot < range_right + 10e3)
             ].dropna()
 
             n, _ = np.histogram(data_bckg, bins=200)
@@ -1043,7 +1070,9 @@ def fit_with_gaussian_fancy(
             )
 
             # Data + fit
-            ax1.plot(bin_centers, counts, ".", label="Data", color="rebeccapurple")
+            ax1.plot(
+                bin_centers, counts, ".", label="Data", color="rebeccapurple"
+            )
             if not interpolate_fit:
                 ax1.plot(
                     bin_centers,
@@ -1110,7 +1139,9 @@ def fit_with_gaussian_fancy(
             # Plot the distribution of residuals with a Gaussian fit
             residuals = counts - result.best_fit
             counts_residuals, bins_residuals = np.histogram(residuals, bins=20)
-            bins_residuals_edges = (bins_residuals[:-1] + bins_residuals[1:]) / 2
+            bins_residuals_edges = (
+                bins_residuals[:-1] + bins_residuals[1:]
+            ) / 2
             ax3.plot(
                 counts_residuals,
                 bins_residuals_edges,
@@ -1158,7 +1189,9 @@ def fit_with_gaussian_fancy(
                 os.chdir(os.path.join(path, r"results/fits"))
 
             plot_name = ft_file.split(".")[0]
-            plt.savefig(f"{plot_name}_pixels_{pix_left},{pix_right}_fancy_fit.png")
+            plt.savefig(
+                f"{plot_name}_pixels_{pix_left},{pix_right}_fancy_fit.png"
+            )
 
             # Pickle the figure if requested
             if pickle_figure:

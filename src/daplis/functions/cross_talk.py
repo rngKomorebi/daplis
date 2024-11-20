@@ -115,7 +115,9 @@ def _collect_cross_talk(
 
     # parameter type check
     if isinstance(pixels, list) is False:
-        raise TypeError("'pixels' should be a list of integers or a list of two lists")
+        raise TypeError(
+            "'pixels' should be a list of integers or a list of two lists"
+        )
     if isinstance(firmware_version, str) is False:
         raise TypeError(
             "'firmware_version' should be string, '2212s', '2212b' or '2208'"
@@ -213,13 +215,17 @@ def _collect_cross_talk(
             os.chdir("cross_talk_data")
 
         # Check if feather file exists
-        feather_file = f"{out_file_name}_pixels_{pixels[0]}-{pixels[-1]}.feather"
+        feather_file = (
+            f"{out_file_name}_pixels_{pixels[0]}-{pixels[-1]}.feather"
+        )
         if os.path.isfile(feather_file):
             # Load existing feather file
             existing_data = ft.read_feather(feather_file)
 
             # Append new data to the existing feather file
-            combined_data = pd.concat([existing_data, data_for_plot_df], axis=0)
+            combined_data = pd.concat(
+                [existing_data, data_for_plot_df], axis=0
+            )
             ft.write_feather(combined_data, feather_file)
 
         else:
@@ -305,7 +311,9 @@ def _plot_cross_talk_peaks(
 
     os.chdir(os.path.join(path, "cross_talk_data"))
 
-    ft_file = glob.glob(f"{ft_file_name}_*{pixels[0]}" f"-{pixels[-1]}*.feather")[0]
+    ft_file = glob.glob(
+        f"{ft_file_name}_*{pixels[0]}" f"-{pixels[-1]}*.feather"
+    )[0]
 
     ct_output = {}
     ct_err_output = {}
@@ -314,11 +322,15 @@ def _plot_cross_talk_peaks(
         if pix_on_left:
 
             data_pix = (
-                ft.read_feather(ft_file, columns=[f"{pix},{pixels[0]}"]).dropna().values
+                ft.read_feather(ft_file, columns=[f"{pix},{pixels[0]}"])
+                .dropna()
+                .values
             )
         else:
             data_pix = (
-                ft.read_feather(ft_file, columns=[f"{pixels[0]},{pix}"]).dropna().values
+                ft.read_feather(ft_file, columns=[f"{pixels[0]},{pix}"])
+                .dropna()
+                .values
             )
 
         data_cut = data_pix[(data_pix > -window / 2) & (data_pix < window / 2)]
@@ -328,7 +340,9 @@ def _plot_cross_talk_peaks(
         counts, bin_edges = np.histogram(
             data_cut,
             bins=(
-                np.arange(np.min(data_cut), np.max(data_cut), multiplier * 2500 / 140)
+                np.arange(
+                    np.min(data_cut), np.max(data_cut), multiplier * 2500 / 140
+                )
             ),
         )
         if len(counts) < 1:
@@ -462,7 +476,9 @@ def _plot_cross_talk_grid(
 
     os.chdir(os.path.join(path, "cross_talk_data"))
 
-    ft_file = glob.glob(f"{ft_file_name}_*{pixels[0]}-{pixels[-1]}*.feather")[0]
+    ft_file = glob.glob(f"{ft_file_name}_*{pixels[0]}-{pixels[-1]}*.feather")[
+        0
+    ]
 
     fig, axes = plt.subplots(4, 5, figsize=(16, 10))
     plt.rcParams.update({"font.size": 27})
@@ -470,11 +486,15 @@ def _plot_cross_talk_grid(
     for i, pix in enumerate(pixels[1:]):
         if pix_on_left:
             data_pix = (
-                ft.read_feather(ft_file, columns=[f"{pix},{pixels[0]}"]).dropna().values
+                ft.read_feather(ft_file, columns=[f"{pix},{pixels[0]}"])
+                .dropna()
+                .values
             )
         else:
             data_pix = (
-                ft.read_feather(ft_file, columns=[f"{pixels[0]},{pix}"]).dropna().values
+                ft.read_feather(ft_file, columns=[f"{pixels[0]},{pix}"])
+                .dropna()
+                .values
             )
 
         data_cut = data_pix[(data_pix > -window / 2) & (data_pix < window / 2)]
@@ -484,7 +504,9 @@ def _plot_cross_talk_grid(
         counts, bin_edges = np.histogram(
             data_cut,
             bins=(
-                np.arange(np.min(data_cut), np.max(data_cut), multiplier * 2500 / 140)
+                np.arange(
+                    np.min(data_cut), np.max(data_cut), multiplier * 2500 / 140
+                )
             ),
         )
         if len(counts) < 1:
@@ -518,7 +540,9 @@ def _plot_cross_talk_grid(
             axes[0, i].set_yticks([])
             axes[0, i].set_title(f"{pixels[0]},{pix}")
         elif i >= 5 and i < 10:
-            axes[1, i % 5].plot(bin_centers, counts, ".", color="rebeccapurple")
+            axes[1, i % 5].plot(
+                bin_centers, counts, ".", color="rebeccapurple"
+            )
             axes[1, i % 5].plot(
                 bin_centers,
                 utils.gaussian(bin_centers, *params),
@@ -529,7 +553,9 @@ def _plot_cross_talk_grid(
             axes[1, i % 5].set_yticks([])
             axes[1, i % 5].set_title(f"{pixels[0]},{pix}")
         elif i >= 10 and i < 15:
-            axes[2, i % 5].plot(bin_centers, counts, ".", color="rebeccapurple")
+            axes[2, i % 5].plot(
+                bin_centers, counts, ".", color="rebeccapurple"
+            )
             axes[2, i % 5].plot(
                 bin_centers,
                 utils.gaussian(bin_centers, *params),
@@ -540,7 +566,9 @@ def _plot_cross_talk_grid(
             axes[2, i % 5].set_yticks([])
             axes[2, i % 5].set_title(f"{pixels[0]},{pix}")
         else:
-            axes[3, i % 5].plot(bin_centers, counts, ".", color="rebeccapurple")
+            axes[3, i % 5].plot(
+                bin_centers, counts, ".", color="rebeccapurple"
+            )
             axes[3, i % 5].plot(
                 bin_centers,
                 utils.gaussian(bin_centers, *params),
@@ -610,9 +638,13 @@ def collect_dcr_by_file(
 
     # Parameter type check
     if not isinstance(firmware_version, str):
-        raise TypeError("'firmware_version' should be a string, '2212b' or '2212s'")
+        raise TypeError(
+            "'firmware_version' should be a string, '2212b' or '2212s'"
+        )
     if not isinstance(daughterboard_number, str):
-        raise TypeError("'daughterboard_number' should be a string, 'NL11' or 'A5'")
+        raise TypeError(
+            "'daughterboard_number' should be a string, 'NL11' or 'A5'"
+        )
     if not isinstance(motherboard_number, str):
         raise TypeError("'motherboard_number' should be a string")
 
@@ -779,7 +811,9 @@ def plot_dcr_histogram_and_stability(
 
     # DCR histogram with integral
     # Compute the histogram
-    bins = np.logspace(np.log10(0.1), np.log10(np.max(data[0])), hist_number_of_bins)
+    bins = np.logspace(
+        np.log10(0.1), np.log10(np.max(data[0])), hist_number_of_bins
+    )
     hist, bin_edges = np.histogram(np.average(data, axis=0), bins=bins)
     bin_centers = (bin_edges - (bin_edges[1] - bin_edges[0]) / 2)[1:]
 
@@ -805,7 +839,7 @@ def plot_dcr_histogram_and_stability(
     ax.set_ylabel("Count (-)")
     ax1.set_ylabel("Integral (%)")
     ax.set_title(f"Median DCR: {dcr_median:.0f} cps/pixel")
-    plt.show()
+    # plt.show()
 
     # Save the plot to "results/dcr"
     fig.savefig("DCR_histogram_w_integral.png")
@@ -944,17 +978,23 @@ def _plot_cross_talk_vs_distance(
             color="indianred",
         )
         aggressor_pix = int(list(CT.keys())[0].split(",")[0].split("(")[1])
-        plt.title(f"Cross-talk probability for aggressor pixel {aggressor_pix}")
+        plt.title(
+            f"Cross-talk probability for aggressor pixel {aggressor_pix}"
+        )
         plt.xlabel("Distance in pixels (-)")
         plt.ylabel("Cross-talk probability (%)")
         if pix_on_left:
-            plt.savefig(f"Cross-talk_aggressor_pixel_{aggressor_pix}_onleft.png")
+            plt.savefig(
+                f"Cross-talk_aggressor_pixel_{aggressor_pix}_onleft.png"
+            )
             with open(
                 f"Cross-talk_aggressor_pixel_{aggressor_pix}_onleft.pkl", "wb"
             ) as f:
                 pickle.dump(fig, f)
         else:
-            plt.savefig(f"Cross-talk_aggressor_pixel_{aggressor_pix}_onright.png")
+            plt.savefig(
+                f"Cross-talk_aggressor_pixel_{aggressor_pix}_onright.png"
+            )
             with open(
                 f"Cross-talk_aggressor_pixel_{aggressor_pix}_onright.pkl", "wb"
             ) as f:
@@ -966,7 +1006,9 @@ def _plot_cross_talk_vs_distance(
             plt.close(fig)
 
 
-def _plot_average_cross_talk_vs_distance(path, ct, ct_err, pix_on_left: bool = False):
+def _plot_average_cross_talk_vs_distance(
+    path, ct, ct_err, pix_on_left: bool = False
+):
     """Plot average cross-talk vs distance from the aggressor pixel.
 
     Plot average cross-talk probability vs distance from the aggressor
@@ -1013,7 +1055,9 @@ def _plot_average_cross_talk_vs_distance(path, ct, ct_err, pix_on_left: bool = F
             key_tuple = eval(key)
 
             key_difference = key_tuple[1] - key_tuple[0]
-            final_result[key_difference].append((ct_pick[key], ct_err_pick[key]))
+            final_result[key_difference].append(
+                (ct_pick[key], ct_err_pick[key])
+            )
 
     for key in final_result.keys():
         value = np.average([x[0] for x in final_result[key]])
@@ -1131,8 +1175,12 @@ def zero_to_cross_talk_collect(
             else:
                 pixels[i] = pixel + 128
 
-    pixels_plus_20 = [[x + i for i in range(0, 21)] for x in pixels if x <= 235]
-    pixels_minus_20 = [[x - i for i in range(0, 21)] for x in pixels if x >= 20]
+    pixels_plus_20 = [
+        [x + i for i in range(0, 21)] for x in pixels if x <= 235
+    ]
+    pixels_minus_20 = [
+        [x - i for i in range(0, 21)] for x in pixels if x >= 20
+    ]
 
     # Collecting sensor population
     os.chdir(path)
@@ -1244,8 +1292,12 @@ def zero_to_cross_talk_plot(
         os.makedirs(os.path.join(path, "ct_vs_distance"))
         os.chdir(os.path.join(path, "ct_vs_distance"))
 
-    pixels_plus_20 = [[x + i for i in range(0, 21)] for x in pixels if x <= 235]
-    pixels_minus_20 = [[x - i for i in range(0, 21)] for x in pixels if x >= 20]
+    pixels_plus_20 = [
+        [x + i for i in range(0, 21)] for x in pixels if x <= 235
+    ]
+    pixels_minus_20 = [
+        [x - i for i in range(0, 21)] for x in pixels if x >= 20
+    ]
     try:
         os.chdir(os.path.join(path, "senpop_data"))
         senpop_data_txt = glob.glob("*.txt")[0]
@@ -1312,7 +1364,8 @@ def zero_to_cross_talk_plot(
         ) / 2
         ct_error_average = (
             np.sqrt(
-                averages_left[key][0][1] ** 2 + averages_right[np.abs(key)][0][1] ** 2
+                averages_left[key][0][1] ** 2
+                + averages_right[np.abs(key)][0][1] ** 2
             )
             / 2
         )

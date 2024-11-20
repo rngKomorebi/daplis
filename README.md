@@ -34,7 +34,7 @@ modules and functions, can be found [here](https://rngkomorebi.github.io/daplis/
 Some functions (mainly the plotting ones) save plots as pictures in the
 .png format, creating a folder for the output in the same folder that
 holds the data. Others (such as delta_t.py for collecting timestamp differences
-in the given time window) save .csv files with the processed data for
+in the given time window) save .csv or .feather files with the processed data for
 easier and faster plotting.
 
 Additionally, a standalone repo with an application for online plotting
@@ -42,22 +42,42 @@ of the sensor population can be found [here](https://github.com/rngKomorebi/Lino
 
 ## Installation and usage
 
-The package can be installed using pip:
+A fresh, separate virtual environment is highly recommended before installing the package.
+This can be done using pip, see, e.g., [this](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/).
+This can help to avoid any dependency conflicts and ensure smooth operation of the
+package.
+
+First, check if the virtualenv package is installed. To do this, one can run:
+```
+pip show virtualenv
+```
+If the package was not found, it can be installed using:
+```
+pip instal virtualenv
+```
+To create a new environment, run the following (if 'py -m' does not work,
+ try 'python -m', 'python3 -m'):
+```
+py -m venv PATH/TO/ENVIRONMENT/ENVIRONMENT_NAME
+```
+To activate the environment (on Windows):
+```
+PATH/TO/ENVIRONMENT/ENVIRONMENT_NAME/Scripts/activate
+```
+and on Linux:
+```
+source PATH/TO/ENVIRONMENT/ENVIRONMENT_NAME/bin/activate
+```
+
+Then, package itself can be installed using pip inside the environment:
 ```
 pip install daplis
 ```
 
 Alternatively, to start using the package, one can download the whole repo. "requirements.txt"
-collects all packages required for this project to run. One can create
+lists all packages required for this project to run. One can create
 an environment for this project either using conda or pip.
-
-To install the
-necessary packages using pip (for creating virtual environments using pip
-see [this](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/)):
 ```
-pip install virtualenv
-py -m venv PATH/TO/ENVIRONMENT/ENVIRONMENT_NAME
-PATH/TO/ENVIRONMENT/ENVIRONMENT_NAME/Scripts/activate
 cd PATH/TO/GITHUB/CODES/daplis
 pip install -r requirements.txt
 ```
@@ -69,16 +89,14 @@ To install the package, first, switch to the created environment:
 ```
 conda activate NEW_ENVIRONMENT_NAME
 ```
-or
-```
-PATH/TO/ENVIRONMENT/ENVIRONMENT_NAME/Scripts/activate
-```
 and run
 ```
 pip install -e .
 ```
-that will install the local package LinoSPAD2. After that, you can
-import all functions in your project:
+where '-e' stands for editable: any changes introduced to the package will
+instantly become a part of the package and can be used without the need
+of reinstalling the whole thing. After that, one can import any function 
+from the daplis package:
 ```
 from daplis.functions import sensor_plot, delta_t, fits
 ```

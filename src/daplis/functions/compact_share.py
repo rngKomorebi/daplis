@@ -30,12 +30,13 @@ from zipfile import ZipFile
 
 import numpy as np
 import pandas as pd
-from daplis.functions import calc_diff as cd
-from daplis.functions import unpack as f_up
-from daplis.functions import utils
 from matplotlib import pyplot as plt
 from pyarrow import feather as ft
 from tqdm import tqdm
+
+from daplis.functions import calc_diff as cd
+from daplis.functions import unpack as f_up
+from daplis.functions import utils
 
 
 def compact_share_feather(
@@ -107,9 +108,13 @@ def compact_share_feather(
 
     # parameter type check
     if isinstance(pixels, list) is False:
-        raise TypeError("'pixels' should be a list of integers or a list of two lists")
+        raise TypeError(
+            "'pixels' should be a list of integers or a list of two lists"
+        )
     if isinstance(firmware_version, str) is False:
-        raise TypeError("'firmware_version' should be string, '2212b' or '2208'")
+        raise TypeError(
+            "'firmware_version' should be string, '2212b' or '2208'"
+        )
     if isinstance(rewrite, bool) is False:
         raise TypeError("'rewrite' should be boolean")
     if isinstance(daughterboard_number, str) is False:
@@ -126,7 +131,9 @@ def compact_share_feather(
     out_file_name = files_all[0][:-4] + "-" + files_all[-1][:-4]
 
     # check if feather file exists and if it should be rewrited
-    feather_file = os.path.join(path, "compact_share", f"{out_file_name}.feather")
+    feather_file = os.path.join(
+        path, "compact_share", f"{out_file_name}.feather"
+    )
 
     utils.file_rewrite_handling(feather_file, rewrite)
 
@@ -201,7 +208,9 @@ def compact_share_feather(
         if os.path.isfile(feather_file):
             # Append delta t data
             existing_data = ft.read_feather(feather_file)
-            combined_data = pd.concat([existing_data, data_for_plot_df], axis=0)
+            combined_data = pd.concat(
+                [existing_data, data_for_plot_df], axis=0
+            )
             ft.write_feather(combined_data, feather_file)
             # Append sensor population data
             existing_data = np.genfromtxt(txt_file, delimiter="\t", dtype=int)
@@ -377,7 +386,9 @@ def collect_and_plot_timestamp_differences_shared_feather(
     file = glob.glob("*.feather")[0]
     feather_file_name = file[:-8]
 
-    print("\n> > > Plotting timestamps differences as a grid of histograms < < <")
+    print(
+        "\n> > > Plotting timestamps differences as a grid of histograms < < <"
+    )
 
     plt.rcParams.update({"font.size": 22})
 
@@ -481,7 +492,9 @@ def collect_and_plot_timestamp_differences_shared_feather(
                 )
             else:
                 plt.xlim(range_left - 100, range_right + 100)
-                plt.title("Pixels {p1},{p2}".format(p1=pixels[q], p2=pixels[w]))
+                plt.title(
+                    "Pixels {p1},{p2}".format(p1=pixels[q], p2=pixels[w])
+                )
 
             try:
                 os.chdir("results/delta_t")
@@ -489,7 +502,9 @@ def collect_and_plot_timestamp_differences_shared_feather(
                 os.makedirs("results/delta_t")
                 os.chdir("results/delta_t")
             fig.tight_layout()  # for perfect spacing between the plots
-            plt.savefig("{name}_delta_t_grid.png".format(name=feather_file_name))
+            plt.savefig(
+                "{name}_delta_t_grid.png".format(name=feather_file_name)
+            )
             os.chdir("../..")
     print(
         "\n> > > Plot is saved as {file} in {path}< < <".format(

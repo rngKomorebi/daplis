@@ -1,4 +1,4 @@
-daplis.functions.plot\_tmsp module
+daplis.functions.sensor\_plot module
 =====================================
 
 .. automodule:: daplis.functions.sensor_plot
