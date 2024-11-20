@@ -39,6 +39,8 @@ version was moved to the delta_t module and renamed to '_combine_intermediate_fe
 
 - Unused jupyter books with examples.
 
+- Examples from the documentation, since there are much more detailed jupyter books.
+
 ## [0.9.9] - 2024-11-11
 
 ### Added
