@@ -5,4 +5,4 @@ pandas==2.0.3
 pyarrow==17.0.0
 scipy==1.11.2
 setuptools>=70.0
-tqdm==4.66.1
+tqdm>=4.67
