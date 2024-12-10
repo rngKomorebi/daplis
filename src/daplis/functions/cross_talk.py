@@ -44,9 +44,8 @@ from scipy.optimize import curve_fit
 from tqdm import tqdm
 
 from daplis.functions import calc_diff as cd
-from daplis.functions import sensor_plot
+from daplis.functions import sensor_plot, utils
 from daplis.functions import unpack as f_up
-from daplis.functions import utils
 
 
 def _collect_cross_talk(
@@ -375,8 +374,8 @@ def _plot_cross_talk_peaks(
                 & (data_cut < params[1] + params[2] * 2)
             ]
             bckg = data_cut[
-                (data_cut > params[1] + 15e3 - params[2] * 2)
-                & (data_cut < params[1] + 15e3 + params[2] * 2)
+                (data_cut > params[1] + 1e3 - params[2] * 2)
+                & (data_cut < params[1] + 1e3 + params[2] * 2)
             ]
             peak_population_err = np.sqrt(len(peak_population))
             bckg_err = np.sqrt(len(bckg))
