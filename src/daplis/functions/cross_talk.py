@@ -35,6 +35,7 @@ import pickle
 import sys
 from typing import List
 
+import matplotlib
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -374,8 +375,8 @@ def _plot_cross_talk_peaks(
                 & (data_cut < params[1] + params[2] * 2)
             ]
             bckg = data_cut[
-                (data_cut > params[1] + 15e3 - params[2] * 2)
-                & (data_cut < params[1] + 15e3 + params[2] * 2)
+                (data_cut > params[1] + 1e3 - params[2] * 2)
+                & (data_cut < params[1] + 1e3 + params[2] * 2)
             ]
             peak_population_err = np.sqrt(len(peak_population))
             bckg_err = np.sqrt(len(bckg))
@@ -1388,8 +1389,72 @@ def zero_to_cross_talk_plot(
     plt.tight_layout()
     os.chdir(os.path.join(path, "ct_vs_distance"))
     plt.legend(loc="best")
+    plt.xticks(list(on_both_average.keys()), list(on_both_average.keys()))
     plt.savefig("Average_cross-talk.png")
     with open("Average_cross-talk.pkl", "wb") as f:
         pickle.dump(fig, f)
 
     return on_both_average, ct_right, ct_left
+
+
+def unpickle_cross_talk(
+    pkl_file: str,
+):
+    """Unpickle a saved cross-talk plot and return data.
+
+    Load the pickled '.pkl' file with the figure, return the figure,
+    extract the data points and errorbars for y and return them.
+
+    Parameters
+    ----------
+    pkl_file : str
+        Absolute path to the '.pkl' file with the cross-talk plot.
+
+    Returns
+    -------
+    tuple of numpy.ndarray
+        A tuple containing three numpy arrays:
+        - x : ndarray
+            The x-coordinates of the data points.
+        - y : ndarray
+            The y-coordinates of the data points.
+        - yerr : ndarray
+            The y-error values associated with each data point.
+    """
+
+    # Read the '.pkl' file
+    with open(pkl_file, "rb") as f:
+        fig = pickle.load(f)
+
+    # Get the axes
+    ax = fig.gca()
+
+    # Collect all objects from the axes
+    children = ax.get_children()
+
+    # Loop through the children to find the LineCollection (error bars)
+    # and Line2D (data points)
+    for child in children:
+        if isinstance(child, matplotlib.collections.LineCollection):
+            error_lines = child
+        elif isinstance(child, matplotlib.lines.Line2D):
+            x = child.get_xdata()
+            y = child.get_ydata()
+
+    # Check if error_lines is found and extract data
+    if error_lines:
+        # Extract error bar line segments
+        segments = error_lines.get_segments()
+    else:
+        print("No error bars found.")
+
+    # Recalculate the error for y from the pickled data
+    # yerr = [(x[1][1] - y) for (x, y) in zip(segments, y)]
+
+    yerr = np.zeros(len(x))
+
+    for i, (seg, y_slice) in enumerate(zip(segments, y)):
+        if seg.size > 0:
+            yerr[i] = seg[1][1] - y_slice
+
+    return x, y, yerr

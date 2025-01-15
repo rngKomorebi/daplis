@@ -5,7 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2024-11-11
+## [1.1.1] - 2025-01-15
+
+Updated the documentation, cleaned up the code, removed the repetitions of pieces of code in some of the functions which appeared most probably due to an incorrect merge.
+
+### Fixed
+
+- As a security update, changed the requirement on the version of the tqdm package.
+
+- Code style and strings in the documentation and comments.
+
+### Changed
+
+- Closer window for the background relative to the signal in cross-talk calculation. The previous shift was too far away from the peak and could cause incorrect cross-talk numbers due to data at high photon rates.
+
+### Removed
+
+- Old functions from mp_analysis.py which became incompatible with the latest version of the package and due to numerous bottlenecks in the code operation.
+
+## [1.1.0] - 2024-12-04
+
+Added new examples, improved the documentation. Updated and corrected tests. Updated security with requirements on more fresh versions of some of the packages.
+
+### Added
+
+- More examples on how to use the main functions of the package.
+
+- Function for unpacking the pickled cross-talk plots. Can be used to
+change the plot or extract the data and replot it completely.
+
+### Changed
+
+- As a security update, changes the requirement for the version of the setuptools: now it should be above 70.0.
+
+- Updated documentation, mainly the instruction on how to install the library.
+
+- Updated tests to also run on the Python 3.12 and 3.13.
+
+## [1.0.0] - 2024-11-24
+
+Creation of DAPLIS - Data Analysis Package for LinoSpad2. Plus the long-awaited merge
+of the develop branch with the main one, adding more features and faster functions to the release version of the package.
+
+## [1.0.1] - 2024-11-20
 
 Prepared the current version of the develop branch for merging with the main one.
 After that, the changes introduced to the main branch will become incompatible with
