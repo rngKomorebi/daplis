@@ -1135,6 +1135,10 @@ def fit_with_gaussian_fancy(
             ax2_lines = ax2.get_lines()
             ax2_lines[0].set_color("black")
             ax2_lines[1].set_color("rebeccapurple")
+            ax2.set_xlim(
+                result.params["center"].value - 2.5e3,
+                result.params["center"].value + 2.5e3,
+            )
 
             # Plot the distribution of residuals with a Gaussian fit
             residuals = counts - result.best_fit
@@ -1188,7 +1192,8 @@ def fit_with_gaussian_fancy(
                 os.makedirs(os.path.join(path, r"results/fits"))
                 os.chdir(os.path.join(path, r"results/fits"))
 
-            plot_name = ft_file.split(".")[0]
+            # plot_name = ft_file.split(".")[0]
+            plot_name = file_name
             plt.savefig(
                 f"{plot_name}_pixels_{pix_left},{pix_right}_fancy_fit.png"
             )

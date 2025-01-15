@@ -221,12 +221,6 @@ def calculate_differences_2212_fast(
             df2 = pd.DataFrame(
                 pix2_data.T, columns=["Pixel_index", "Timestamp"]
             )
-            df1 = pd.DataFrame(
-                pix1_data.T, columns=["Pixel_index", "Timestamp"]
-            )
-            df2 = pd.DataFrame(
-                pix2_data.T, columns=["Pixel_index", "Timestamp"]
-            )
 
             # Combine the two dataframes
             df_combined = pd.concat((df1, df2), ignore_index=True)
@@ -274,7 +268,8 @@ def calculate_differences_2212_fast_mod(
     """Calculate timestamp differences for firmware version 2212.
 
     Calculate timestamp differences for the given pixels and LinoSPAD2
-    firmware version 2212.
+    firmware version 2212. Calculated only for the diagonal pixels, i.e.,
+    1-1, 2-2, etc., and not for all pairs.
 
     Parameters
     ----------

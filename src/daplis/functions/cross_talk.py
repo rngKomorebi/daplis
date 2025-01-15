@@ -44,8 +44,9 @@ from scipy.optimize import curve_fit
 from tqdm import tqdm
 
 from daplis.functions import calc_diff as cd
-from daplis.functions import sensor_plot, utils
+from daplis.functions import sensor_plot
 from daplis.functions import unpack as f_up
+from daplis.functions import utils
 
 
 def _collect_cross_talk(
@@ -1388,7 +1389,7 @@ def zero_to_cross_talk_plot(
     plt.tight_layout()
     os.chdir(os.path.join(path, "ct_vs_distance"))
     plt.legend(loc="best")
-    plt.xticks([int(on_both_average.keys())], [int(on_both_average.keys())])
+    plt.xticks(list(on_both_average.keys()), list(on_both_average.keys()))
     plt.savefig("Average_cross-talk.png")
     with open("Average_cross-talk.pkl", "wb") as f:
         pickle.dump(fig, f)

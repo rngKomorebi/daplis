@@ -4,6 +4,8 @@ Package for unpacking and analyzing the binary data from the timestamping mode o
 
 ![Tests](https://github.com/rngKomorebi/LinoSPAD2/actions/workflows/tests.yml/badge.svg)
 ![Documentation](https://github.com/rngKomorebi/LinoSPAD2/actions/workflows/documentation.yml/badge.svg)
+![PyPI - Version](https://img.shields.io/pypi/v/daplis)
+![PyPI - License](https://img.shields.io/pypi/l/daplis)
 
 ## Introduction
 
@@ -12,6 +14,13 @@ analysis of the timestamp output. The key functions are ones for
 unpacking the binary output of the detector that utilizes the numpy
 Python library for quick unpacking of .dat files to matrices,
 dictionaries, or data frames.
+
+This library greatly streamlines working with raw timestamps from 
+the LinoSPAD2 camera. With this package, one can analyze dark current 
+rate, cross-talk probability, plot sensor population, and analyze the
+raw data to look for photon coincidences.
+
+## Structure of the package
 
 The "functions" folder holds all functions from unpacking to plotting
 numerous types of graphs (pixel population, histograms of timestamp
@@ -107,6 +116,9 @@ and run
 ```
 pip install -e .
 ```
+
+For a fast introduction on how to use the package, please see the
+jupyter notebooks with examples on the main functions at "daplis/examples/".
 
 ## How to contribute
 
