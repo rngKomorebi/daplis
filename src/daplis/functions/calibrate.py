@@ -1,7 +1,7 @@
 """Module for working with the calibration data.
 
 Functions in this module can be used to analyze the LinoSPAD2 data
-to collect either a calibration matrix for compensating TDC 
+to collect either a calibration matrix for compensating TDC
 nonlinearities or a calibration matrix for offset calibration. First
 nonlinearity is introduced by nonequal bins of the 140-bin long TDC line
 while the second - from the different-length electrical path in the PCB.
@@ -709,8 +709,6 @@ def calculate_and_save_offset_calibration(
             peak_positions_1_4[i] = parameters[1]
 
     peak_positions = peak_positions_1_4 + peak_positions_3_256
-    print(peak_positions)
-    print(peak_positions)
 
     # Indices for a system of linear equations for offset calculation.
     # Last equation is for setting the average offset equal to zero.
@@ -757,7 +755,7 @@ def load_calibration_data(
         LinoSPAD2 firmware version.
     include_offset : bool, optional
         Switch for including the offset calibration. The default is
-        True.
+        False.
 
     Returns
     -------

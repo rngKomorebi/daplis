@@ -7,7 +7,7 @@ functions:
     with a Gaussian function and plot a histogram of timestamp
     differences and the fit in a single figure.
 
-    * fit_with_gaussian_all - find all peaks above the given threshold 
+    * fit_with_gaussian_all - find all peaks above the given threshold
     and fit them individually with a Gaussian function.
 
     * fit_with_gaussian_full_sensor - fit timestamp differences of a
@@ -16,13 +16,13 @@ functions:
     in a single figure.
 
     * fit_with_gaussian_fancy - fit timestamp diferences of a pair of
-    pixels using the lmfit library. The main parameters reported are 
+    pixels using the lmfit library. The main parameters reported are
     the standard deviation, mean value, and contrast, together with
     residuals and signal-to-noise ratio (SNR) defined as a ratio of peak
     height to standard deviation of background.
 
     * unpickle_fit - unpickle the '.pkl' file, show the plot, and
-    return the plot data for each line found (histogram, fit 1, fit 2, 
+    return the plot data for each line found (histogram, fit 1, fit 2,
     etc.).
 
 """
@@ -270,10 +270,10 @@ def fit_with_gaussian(
                 "-",
                 color=color_fit,
                 label="fit\n"
-                "\u03C3=({p1}\u00B1{pe1}) ps\n"
-                "\u03BC=({p2}\u00B1{pe2}) ps\n"
-                "C=({contrast}\u00B1{contrast_error}) %\n"
-                "bkg={bkg}\u00B1{bkg_er}".format(
+                "\u03c3=({p1}\u00b1{pe1}) ps\n"
+                "\u03bc=({p2}\u00b1{pe2}) ps\n"
+                "C=({contrast}\u00b1{contrast_error}) %\n"
+                "bkg={bkg}\u00b1{bkg_er}".format(
                     p1=format(par[2], ".0f"),
                     p2=format(par[1], ".0f"),
                     pe1=format(perr[2], ".0f"),
@@ -577,9 +577,9 @@ def fit_with_gaussian_all(
                     color=color_f[k],
                     linewidth=2,
                     label=f"{labels[k]}\n"
-                    "\u03C3=({p1}\u00B1{pe1}) ps\n"
-                    "\u03BC=({p2}\u00B1{pe2}) ps\n"
-                    "C=({contrast}\u00B1{contrast_error}) %".format(
+                    "\u03c3=({p1}\u00b1{pe1}) ps\n"
+                    "\u03bc=({p2}\u00b1{pe2}) ps\n"
+                    "C=({contrast}\u00b1{contrast_error}) %".format(
                         labels,
                         p1=format(par[2], ".0f"),
                         p2=format(par[1], ".0f"),
@@ -819,10 +819,10 @@ def fit_with_gaussian_full_sensor(
         "-",
         color=color_fit,
         label="fit\n"
-        "\u03C3=({p1}\u00B1{pe1}) ps\n"
-        "\u03BC=({p2}\u00B1{pe2}) ps\n"
-        "C=({contrast}\u00B1{vis_er}) %\n"
-        "bkg={bkg}\u00B1{bkg_er}".format(
+        "\u03c3=({p1}\u00b1{pe1}) ps\n"
+        "\u03bc=({p2}\u00b1{pe2}) ps\n"
+        "C=({contrast}\u00b1{vis_er}) %\n"
+        "bkg={bkg}\u00b1{bkg_er}".format(
             p1=format(par[2], ".0f"),
             p2=format(par[1], ".0f"),
             pe1=format(perr[2], ".0f"),

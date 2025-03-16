@@ -45,7 +45,7 @@ def unpack_binary_data(
         Number of timestamps per cycle per TDC per acquisition cycle.
         The default is 512.
     include_offset : bool, optional
-        Switch for applying offset calibration. The default is True.
+        Switch for applying offset calibration. The default is False.
     apply_calibration : bool, optional
         Switch for applying TDC and offset calibration. If set to 'True'
         while include_offset is set to 'False', only the TDC
@@ -136,7 +136,10 @@ def unpack_binary_data(
         data_all[:, :, 1] = data_all[:, :, 1] * 2500 / 140
     else:
         # Path to the calibration data
-        pix_coordinates = np.arange(256).reshape(64, 4)
+        if firmware_version == "2212b":
+            pix_coordinates = np.arange(256).reshape(64, 4)
+        else:
+            pix_coordinates = np.arange(256).reshape(4, 64).T
 
         path_calibration_data = os.path.join(
             os.path.dirname(os.path.realpath(__file__)),
