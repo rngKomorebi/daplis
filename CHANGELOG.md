@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] - 2025-03-16
+
+Bug fixing, offset calibration for FW2212s.
+
+### Added
+
+- Example on how to do offset calibration using cross-talk data and 
+an offset calibration file for the 2212s firmware version.
+
+### Fixed
+
+- A bug in the unpack version, where only the TDC calibration for the 2212b firmware version was applied.
+
+### Changed
+
+- "_mod" function versions in the delta_t and calc_diff modules are a part 
+of the main roster of function, renamed to "_1v1" and can be used for 
+calculating timestamp differences for diagonal pixels (1-1, 2-2, etc.).
+
 ## [1.1.1] - 2025-01-15
 
 Updated the documentation, cleaned up the code, removed the repetitions of pieces of code in some of the functions which appeared most probably due to an incorrect merge.

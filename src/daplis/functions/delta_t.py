@@ -16,6 +16,12 @@ functions:
     file. Works with firmware versions '2208' and '2212b'. Uses a faster
     algorithm than the function above.
 
+    * calculate_and_save_timestamp_differences_fast_1v1 - unpacks the
+    binary data, calculates timestamp differences, and saves into a
+    '.feather' file. Works with firmware versions '2208' and '2212b'.
+    Uses a faster algorithm than the standard version. Calculated only
+    for the diagonal pixels, i.e., 1-1, 2-2, etc., and not for all pairs.
+
     * calculate_and_save_timestamp_differences_full_sensor - unpacks the
     binary data, calculates timestamp differences and saves into a
     '.feather' file. Works with firmware versions '2208', '2212s' and
@@ -33,7 +39,7 @@ functions:
     '.feather' file and plot them in a grid.
 
     TODO remove
-    * collect_and_plot_timestamp_differences_from_ft_file - unpack the 
+    * collect_and_plot_timestamp_differences_from_ft_file - unpack the
     '.feather' file requested, collect timestamp differences and
     plot it as a grid of plots. Useful when only the '.feather' file
     is available and not the raw '.dat' files.
@@ -645,8 +651,7 @@ def calculate_and_save_timestamp_differences_fast(
         print("File wasn't generated. Check input parameters.")
 
 
-# TODO: remove, redo
-def calculate_and_save_timestamp_differences_fast_mod(
+def calculate_and_save_timestamp_differences_fast_1v1(
     path: str,
     pixels: List[int] | List[List[int]],
     rewrite: bool,
@@ -666,7 +671,8 @@ def calculate_and_save_timestamp_differences_fast_mod(
 
     Unpacks data into a dictionary, calculates timestamp differences for
     the requested pixels, and saves them into a '.feather' table. Works with
-    firmware version 2212. Uses a faster algorithm.
+    firmware version 2212. Uses a faster algorithm. Calculated only for
+    the diagonal pixels, i.e., 1-1, 2-2, etc., and not for all pairs.
 
     Parameters
     ----------
@@ -818,7 +824,7 @@ def calculate_and_save_timestamp_differences_fast_mod(
         if cycle_length is None:
             cycle_length = np.max(data_all)
 
-        delta_ts = cd.calculate_differences_2212_fast_mod(
+        delta_ts = cd.calculate_differences_2212_fast_1v1(
             data_all, pixels, pix_coor, delta_window, cycle_length
         )
 
@@ -838,7 +844,7 @@ def calculate_and_save_timestamp_differences_fast_mod(
         if os.path.isfile(feather_file):
             # Check the size of the existing '.feather', if larger
             # than 100 MB, create new one
-            if os.path.getsize(feather_file) / 1024 / 1024 < 10:
+            if os.path.getsize(feather_file) / 1024 / 1024 < 100:
                 # Load existing feather file
                 existing_data = ft.read_feather(feather_file)
 
@@ -856,7 +862,7 @@ def calculate_and_save_timestamp_differences_fast_mod(
         os.chdir("..")
 
     # Combine the numbered feather files into a single one
-    utils.combine_feather_files(path)
+    _combine_intermediate_feather_files(path)
 
     # Check, if the file was created
 

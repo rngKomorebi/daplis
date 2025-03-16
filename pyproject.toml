@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "daplis"
-version = "1.1.1"
+version = "1.1.2"
 description = "Data Analysis Package for LInoSpad"
 authors = [{ name = "Sergei Kulkov", email = "sergei.kulkov23@gmail.com" }]
 license = { text = "MIT" }

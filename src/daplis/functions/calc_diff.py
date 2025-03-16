@@ -10,10 +10,16 @@ functions:
     TODO remove
     * calculate_differences_2212 - calculate timestamp differences for
     the given pair of pixels. Works only with firmware version '2212'.
-    
-    * calculate_differences_2212_fast - calculate timestamp differences for
-    the given pair of pixels. Works only with firmware version '2212'.
-    Uses a faster algorithm than the function above.
+
+    * calculate_differences_2212_fast - calculate timestamp differences
+    for the given pair of pixels. Works only with firmware version
+    '2212'. Uses a faster algorithm than the standard version.
+
+    * calculate_differences_2212_fast_1v1 - calculate timestamp
+    differences for the given pair of pixels. Works only with firmware
+    version '2212'. Uses a faster algorithm than the standard version.
+    Calculated only for the diagonal pixels, i.e., 1-1, 2-2, etc., and
+    not for all pairs.
 
 """
 
@@ -258,7 +264,7 @@ def calculate_differences_2212_fast(
 
 
 # TODO: remove, redo
-def calculate_differences_2212_fast_mod(
+def calculate_differences_2212_fast_1v1(
     data: ndarray,
     pixels: List[int] | List[List[int]],
     pix_coor: ndarray,
@@ -268,7 +274,7 @@ def calculate_differences_2212_fast_mod(
     """Calculate timestamp differences for firmware version 2212.
 
     Calculate timestamp differences for the given pixels and LinoSPAD2
-    firmware version 2212. Calculated only for the diagonal pixels, i.e.,
+    firmware version 2212. Calculates only for the diagonal pixels, i.e.,
     1-1, 2-2, etc., and not for all pairs.
 
     Parameters
