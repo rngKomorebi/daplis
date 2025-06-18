@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-06-14
+
+Added offset calibration, removed deprecated functions, updated doscstrings, added error workarounds.
+
+### Added
+
+- Function to the 'fits' module for combining the '.feather' files for the requested pixels before doing a fit.
+
+- Option for including the offset calibration post-factum during the fitting via the 'fits' module or plotting the coincidence histogram using the 'delta_t' module. Can be useful when timestamp differences were calculated without the offset calibration but it is available and can be utilized.
+
+### Fixed
+
+- Error handling for the fitting functions when no data was available for the requested pixels.
+
+### Changed
+
+- Commented out the offset calibration functions from the 'calibrate' module. Those were found to be not working properly and outdated.
+
+### Removed
+
+- Deprecated functions from the 'calc_diff' and 'delta_t' modules.
+
+- Function for plotting sensor population from SPDC data as the usual function can be used for that as well.
+
+- Test for plotting the sensor population plot for the SPDC data.
+
+- Jypyter notebook with the example of offset calibration using cross-talk data. This will be reworked and will return later.
+
 ## [1.1.2] - 2025-03-16
 
 Bug fixing, offset calibration for FW2212s.

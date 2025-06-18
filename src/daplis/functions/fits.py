@@ -7,6 +7,10 @@ functions:
     with a Gaussian function and plot a histogram of timestamp
     differences and the fit in a single figure.
 
+    * fit_with_gaussian_combine - combine timestamp differences for the
+    requested pixels before fitting them with a Gaussian function. Then,
+    plot a histogram together with the fit.
+
     * fit_with_gaussian_all - find all peaks above the given threshold
     and fit them individually with a Gaussian function.
 
@@ -44,7 +48,6 @@ from scipy import signal as sg
 from daplis.functions import utils
 
 
-# TODO
 def fit_with_gaussian(
     path: str,
     pixels: List[int] | List[List[int]],
@@ -57,6 +60,7 @@ def fit_with_gaussian(
     correct_pix_address: bool = False,
     return_fit_params: bool = False,
     pickle_figure: bool = False,
+    file_offset_abs: str = None,
 ) -> DataFrame:
     """Fit with Gaussian function and plot it.
 
@@ -100,6 +104,10 @@ def fit_with_gaussian(
     pickle_figure : bool, optional
         Switch for pickling the plot. Can be used to extract the plot
         data. The default is False.
+    file_offset_abs : str, optional
+        Absolute path to the '.npy' file with the offset calibration
+        for the particular board. The default is None.
+
 
     Raises
     ------
@@ -155,13 +163,15 @@ def fit_with_gaussian(
 
     for pix_left in pixels_left:
         for pix_right in pixels_right:
-            data_to_plot = data[f"{pix_left},{pix_right}"].dropna()
-
+            try:
+                data_to_plot = data[f"{pix_left},{pix_right}"].dropna()
+            except (ValueError, KeyError):
+                print(f"No data for {pix_left},{pix_right}")
+                continue
             # Check if there any finite values
             if not np.any(~np.isnan(data_to_plot)):
-                raise ValueError(
-                    "\nNo data for the requested pixel pair available"
-                )
+                print(f"No data for {pixels_left},{pixels_right}")
+                continue
 
             data_to_plot = data_to_plot.dropna()
             data_to_plot = np.array(data_to_plot)
@@ -201,6 +211,20 @@ def fit_with_gaussian(
                 data_to_plot,
                 np.argwhere(data_to_plot > b[n_argmax] + window / 2),
             )
+
+            if file_offset_abs is not None:
+                try:
+                    data_offset = np.load(file_offset_abs)
+                    delay_pix1 = data_offset[pix_left]
+                    delay_pix2 = data_offset[pix_right]
+                    data_to_plot = data_to_plot - delay_pix1 + delay_pix2
+                except FileNotFoundError:
+                    print(
+                        "No absolute path to the '.npy' file with "
+                        "the offset calibration data was provided. Offset "
+                        "calibration is not applied."
+                    )
+                    pass
 
             # Bins must be in units of 17.857 ps (2500/140)
             bins = np.arange(
@@ -309,6 +333,298 @@ def fit_with_gaussian(
                     pickle.dump(fig, f)
 
             os.chdir("../..")
+
+    return fit_params if return_fit_params else None
+
+
+def fit_with_gaussian_combine(
+    path: str,
+    pixels: List[int] | List[List[int]],
+    ft_file: str = None,
+    window: float = 5e3,
+    multiplier: int = 1,
+    color_data: str = "rebeccapurple",
+    color_fit: str = "darkorange",
+    title_on: bool = True,
+    correct_pix_address: bool = False,
+    return_fit_params: bool = False,
+    pickle_figure: bool = False,
+    file_offset_abs: str = None,
+) -> DataFrame:
+    """Fit with Gaussian function and plot it, merging the pixels.
+
+    Fits timestamp differences of a pair of pixels with Gaussian
+    function and plots it next to the histogram of the differences.
+    Timestamp differences are collected from a '.feather' file if it
+    exists. Merges the data from all pixel pairs requested into a
+    single peak.
+
+    Parameters
+    ----------
+    path : str
+        Path to the folder with '.dat' data files or where the
+        '.feather' file with timestamp differences is located.
+    pixels : List[int] | List[List[int]]
+        List of pixel numbers for which the timestamp differences should
+        be calculated and saved or list of two lists with pixel numbers
+        for peak vs. peak calculations.
+    ft_file : str, optional
+        Name of the '.feather' file to use for plotting. Can be used
+        when the raw '.dat' data is not available. The default is None.
+    window : float, optional
+        Time range in which timestamp differences are fitted. The
+        default is 5e3.
+    multiplier : int, optional
+        Bins of delta t histogram should be in units of 17.857 (average
+        LinoSPAD2 TDC bin width), this parameter helps with changing the
+        bin size while maintaining that rule. Default is 1.
+    color_data : str, optional
+        For changing the color of the data. The default is "rebeccapurple".
+    color_fit : str, optional
+        For changing the color of the fit. The default is "darkorange".
+    title_on : bool, optional
+        Switch for turning on/off the title of the plot, the title
+        shows the pixels for which the fit is done. The default is True.
+    correct_pix_address : bool, optional
+        Correct pixel address for the FPGA board on side 23. The
+        default is False.
+    return_fit_params : bool, optional
+        Switch for returning the fit parameters for further analysis.
+        The default is False.
+    pickle_figure : bool, optional
+        Switch for pickling the plot. Can be used to extract the plot
+        data. The default is False.
+    file_offset_abs : str, optional
+        Absolute path to the '.npy' file with the offset calibration
+        for the particular board. The default is None.
+
+
+    Raises
+    ------
+    FileNotFoundError
+        Raised if no '.dat' data files are found.
+    FileNotFoundError
+        Raised if no '.feather' file with timestamp differences is found.
+    ValueError
+        Raised if no data for the requested pair of pixels is found
+        in the '.feather' file.
+
+    Returns
+    -------
+    DataFrame.
+        A dataframe with fit parameters and their standard errors.
+        Returned only if the "return_fit_params" is set to True.
+
+    """
+    plt.ion()
+
+    os.chdir(path)
+
+    # Correct pixel addressing for motherboard on side '23'
+    if correct_pix_address:
+        pixels = utils.correct_pixels_address(pixels)
+
+    # Handle the input pixel list
+    pixels_left, pixels_right = utils.pixel_list_transform(pixels)
+
+    # If name of the '.feather' file is not provided, get it based on
+    # the '.dat' files in the folder
+    if ft_file is not None:
+        file_name = ft_file.split(".")[0]
+        feather_file_name = ft_file
+    else:
+        files = sorted(glob.glob("*.dat*"))
+        file_name = files[0][:-4] + "-" + files[-1][:-4]
+
+        try:
+            os.chdir("delta_ts_data")
+        except FileNotFoundError:
+            raise ("\nFile with data not found")
+
+        feather_file_name = glob.glob(f"*{file_name}.feather*")[0]
+
+    if not feather_file_name:
+        raise FileNotFoundError("\nFile with data not found")
+
+    if return_fit_params:
+        fit_params = {}
+
+    data = ft.read_feather(f"{feather_file_name}")
+    data_merged = []
+    data_merged = pd.DataFrame(data_merged)
+
+    for pix_left in pixels_left:
+        for pix_right in pixels_right:
+            data_to_plot = data[f"{pix_left},{pix_right}"].dropna()
+
+            # Check if there any finite values
+            if not np.any(~np.isnan(data_to_plot)):
+                raise ValueError(
+                    "\nNo data for the requested pixel pair available"
+                )
+
+            data_to_plot = data_to_plot.dropna()
+            data_to_plot = np.array(data_to_plot)
+
+            # Use the given window for trimming the data for fitting
+            data_to_plot = np.delete(
+                data_to_plot, np.argwhere(data_to_plot < -window)
+            )
+            data_to_plot = np.delete(
+                data_to_plot, np.argwhere(data_to_plot > window)
+            )
+
+            os.chdir(path)
+            plt.rcParams.update({"font.size": 27})
+
+            # Bins must be in units of 17.857 ps (2500/140)
+            bins = np.arange(
+                np.min(data_to_plot),
+                np.max(data_to_plot),
+                2500 / 140 * multiplier * 2,
+            )
+
+            # Calculate histogram of timestamp differences for primary guess
+            # of fit parameters and selecting a narrower window for the fit
+            n, b = np.histogram(data_to_plot, bins)
+
+            try:
+                n_argmax = np.argmax(n)
+            except ValueError:
+                print("Couldn't find position of histogram max")
+
+            data_to_plot = np.delete(
+                data_to_plot,
+                np.argwhere(data_to_plot < b[n_argmax] - window / 2),
+            )
+            data_to_plot = np.delete(
+                data_to_plot,
+                np.argwhere(data_to_plot > b[n_argmax] + window / 2),
+            )
+
+            if file_offset_abs is not None:
+                try:
+                    data_offset = np.load(file_offset_abs)
+                    delay_pix1 = data_offset[pix_left]
+                    delay_pix2 = data_offset[pix_right]
+                    data_to_plot = data_to_plot - delay_pix1 + delay_pix2
+                except FileNotFoundError:
+                    print(
+                        "No absolute path to the '.npy' file with "
+                        "the offset calibration data was provided. Offset "
+                        "calibration is not applied."
+                    )
+                    pass
+
+            data_merged = pd.concat((data_merged, pd.DataFrame(data_to_plot)))
+
+    # Bins must be in units of 17.857 ps (2500/140)
+    bins = np.arange(
+        np.min(data_merged),
+        np.max(data_merged),
+        2500 / 140 * multiplier,
+    )
+
+    n, b = np.histogram(data_merged, bins)
+
+    bin_centers = (b - 2500 / 140 * multiplier / 2)[1:]
+
+    par, pcov = utils.fit_gaussian(bin_centers, n)
+
+    # Interpolate for smoother fit plot
+    to_fit_b = np.linspace(
+        np.min(bin_centers),
+        np.max(bin_centers),
+        len(bin_centers) * 100,
+    )
+    to_fit_n = utils.gaussian(to_fit_b, par[0], par[1], par[2], par[3])
+
+    perr = np.sqrt(np.diag(pcov))
+    contrast = par[0] / par[3] * 100
+    contrast_error = utils.error_propagation_division(
+        par[0], perr[0], par[3], perr[3]
+    )
+
+    # Contrast error in %
+    contrast_error = contrast_error * 100
+
+    # Prepare dataframe for fit parameters, if return of them is
+    # requested
+    if return_fit_params:
+        params_df = pd.DataFrame()
+        params_df["Fit parameter"] = [
+            "center (ps)",
+            "center_error (ps)",
+            "sigma (ps)",
+            "sigma_error (ps)",
+            "contrast (%)",
+            "contrast_error (%)",
+        ]
+        params_df[f"Peak at {par[1]:.0f} ps"] = [
+            par[1],
+            perr[1],
+            par[2],
+            perr[2],
+            contrast,
+            contrast_error,
+        ]
+        fit_params[f"{pixels_left},{pixels_right}"] = params_df
+
+    fig = plt.figure(figsize=(16, 10))
+    plt.locator_params(axis="x", nbins=5)
+    plt.xlabel(r"$\Delta$t (ps)")
+    plt.ylabel("# of coincidences (-)")
+    plt.step(
+        b[1:],
+        n,
+        color=color_data,
+        label="data",
+    )
+    plt.plot(
+        to_fit_b,
+        to_fit_n,
+        "-",
+        color=color_fit,
+        label="fit\n"
+        "\u03c3=({p1}\u00b1{pe1}) ps\n"
+        "\u03bc=({p2}\u00b1{pe2}) ps\n"
+        "C=({contrast}\u00b1{contrast_error}) %\n"
+        "bkg={bkg}\u00b1{bkg_er}".format(
+            p1=format(par[2], ".0f"),
+            p2=format(par[1], ".0f"),
+            pe1=format(perr[2], ".0f"),
+            pe2=format(perr[1], ".0f"),
+            bkg=format(par[3], ".0f"),
+            bkg_er=format(perr[3], ".0f"),
+            contrast=format(contrast, ".1f"),
+            contrast_error=format(contrast_error, ".1f"),
+        ),
+    )
+    plt.legend(loc="best")
+    if title_on is True:
+        plt.title(
+            "Gaussian fit of delta t histogram,\n"
+            f"pixels {pixels_left}, {pixels_right}"
+        )
+
+    try:
+        os.chdir("results/fits")
+    except FileNotFoundError:
+        os.makedirs("results/fits")
+        os.chdir("results/fits")
+
+    # fig.tight_layout()  # for perfect spacing between the plots
+
+    plt.savefig(f"{file_name}_pixels_{pixels_left},{pixels_right}_fit.png")
+
+    # Pickle the figure if requested
+    if pickle_figure:
+        with open(
+            f"{file_name}_pixels_{pixels_left},{pixels_right}_fit.pkl", "wb"
+        ) as f:
+            pickle.dump(fig, f)
+
+    os.chdir("../..")
 
     return fit_params if return_fit_params else None
 
@@ -863,6 +1179,7 @@ def fit_with_gaussian_fancy(
     range_left: float = -5e3,
     range_right: float = 5e3,
     multiplier: int = None,
+    normalize: bool = False,
     return_fit_params: bool = False,
     interpolate_fit: bool = True,
     correct_pix_address: bool = False,
@@ -897,6 +1214,8 @@ def fit_with_gaussian_fancy(
         Bins of delta t histogram should be in units of 17.857 (average
         LinoSPAD2 TDC bin width), this parameter helps with changing the
         bin size while maintaining that rule. Default is 1.
+    normalize : bool, optional
+        Switch for normalizing the plot to median. The default is False.
     return_fit_parameters : bool, optional
         Switch for returning the fit parameters as they are returned
         by the lmfit library. The default is False.
@@ -974,8 +1293,11 @@ def fit_with_gaussian_fancy(
 
     for pix_left in pixels_left:
         for pix_right in pixels_right:
-
-            data_to_plot = data[f"{pix_left},{pix_right}"].dropna()
+            try:
+                data_to_plot = data[f"{pix_left},{pix_right}"].dropna()
+            except KeyError:
+                print(f"No data for {pix_left},{pix_right}")
+                continue
 
             # Select a window around the signal
             data_signal = data_to_plot[
@@ -998,7 +1320,8 @@ def fit_with_gaussian_fancy(
             n, _ = np.histogram(data_bckg, bins=200)
 
             # Normalize - same as signal
-            n = n / np.median(n)
+            if normalize:
+                n = n / np.median(n)
 
             # The divisor in the SNR (signal height / sigma of bckg)
             bckg_stderr = np.std(n)
@@ -1013,15 +1336,21 @@ def fit_with_gaussian_fancy(
                     / len(data_signal.values) ** (1 / 3)
                 )
                 multiplier = int(number_of_bins / (2500 / 140))
-            bins = np.arange(
-                np.min(data_signal),
-                np.max(data_signal),
-                2500 / 140 * multiplier,
-            )
-            counts, bins = np.histogram(data_signal, bins)
+
+            try:
+                bins = np.arange(
+                    np.min(data_signal),
+                    np.max(data_signal),
+                    2500 / 140 * multiplier,
+                )
+                counts, bins = np.histogram(data_signal, bins)
+            except ValueError:
+                print(f"Can't calculate bins for {pix_left},{pix_right}")
+                continue
 
             # Normalize
-            counts = counts / np.median(counts)
+            if normalize:
+                counts = counts / np.median(counts)
 
             bin_centers = (bins[:-1] + bins[1:]) / 2
 
@@ -1037,7 +1366,7 @@ def fit_with_gaussian_fancy(
 
             params["amplitude"].min = 0
             params["height"].min = 0
-            params["height"].max = 1
+            # params["height"].max = 1
 
             # Combine the models
             model = model_peak + model_bckg
@@ -1097,19 +1426,22 @@ def fit_with_gaussian_fancy(
             )
 
             # Parameters
-            fit_params_text = "\n".join(
-                [
-                    "Fit parameters",
-                    "                           ",
-                    f"$\sigma$: ({result.params['sigma'].value:.0f}"
-                    f"±{result.params['sigma'].stderr:.0f}) ps",
-                    f"$\mu$: ({result.params['center'].value:.0f}"
-                    f"±{result.params['center'].stderr:.0f}) ps",
-                    f"C: ({result.params['height'].value*100:.0f}"
-                    f"±{result.params['height'].stderr*100:.0f}) %",
-                    f"SNR: {result.params['height'] / bckg_stderr:.0f} $\sigma$",
-                ]
-            )
+            try:
+                fit_params_text = "\n".join(
+                    [
+                        "Fit parameters",
+                        "                           ",
+                        f"$\sigma$: ({result.params['sigma'].value:.0f}"
+                        f"±{result.params['sigma'].stderr:.0f}) ps",
+                        f"$\mu$: ({result.params['center'].value:.0f}"
+                        f"±{result.params['center'].stderr:.0f}) ps",
+                        f"C: ({result.params['height'].value*100:.0f}"
+                        f"±{result.params['height'].stderr*100:.0f}) %",
+                        f"SNR: {result.params['height'] / bckg_stderr:.0f} $\sigma$",
+                    ]
+                )
+            except TypeError:
+                continue
 
             ax1.text(
                 1.05,
@@ -1263,11 +1595,6 @@ def unpickle_fit(fit_pickle_file: str) -> dict:
         else:
             plot_data[f"Fit_{i}"] = (x, y)
 
-    # Extract the legend
-    legend = ax.get_legend()
-
-    legend_labels = [text.get_text() for text in legend.get_texts()]
-
     # Pattern for the fit parameters: sigma, mu, C
     pattern = (
         r"σ=\(([\d.-]+)±([\d.-]+)\) ps\n"
@@ -1288,9 +1615,9 @@ def unpickle_fit(fit_pickle_file: str) -> dict:
     ]
 
     # Go over labels and collect the parameters
-    for label in legend_labels:
+    for key in plot_data.keys():
         # Search for the fit parameters in the legend label
-        match = re.search(pattern, label)
+        match = re.search(pattern, key)
 
         if match:
             # Extract the fit parameters and their uncertainties

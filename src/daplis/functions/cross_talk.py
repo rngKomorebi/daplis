@@ -21,7 +21,7 @@ functions:
     result is saved into a '.feather' file.
 
     * zero_to_cross_talk_plot - collect the timestamp differences from
-    the '.feather' file and plot the cross-talk peaks applying a 
+    the '.feather' file and plot the cross-talk peaks applying a
     Gaussian fit where possible, plot the average cross-talk probability
     vs distance from the hot pixel for each pair of aggressor-victim
     pixels, and finally plot the average cross-talk probability
@@ -200,7 +200,7 @@ def _collect_cross_talk(
         # deltas_all = cd.calculate_differences_2212(
         #     data_all, pixels_formatted, pix_coor, delta_window
         # )
-        deltas_all = cd.calculate_differences_2212_fast(
+        deltas_all = cd.calculate_differences(
             data_all, pixels_formatted, pix_coor, delta_window
         )
 
@@ -405,7 +405,7 @@ def _plot_cross_talk_peaks(
         if senpop is not None:
             plt.title(
                 f"Cross-talk peak, pixels {pixels[0]},{pix}\n"
-                f"Cross-talk is {CT:.1e}" + "\u00B1" + f"{CT_err:.1e}" + "%"
+                f"Cross-talk is {CT:.1e}" + "\u00b1" + f"{CT_err:.1e}" + "%"
             )
         else:
             plt.title(f"Cross-talk peak, pixels {pixels[0]},{pix}")

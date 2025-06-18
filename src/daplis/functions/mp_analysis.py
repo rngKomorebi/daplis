@@ -505,7 +505,7 @@ class MpWizard:
 
                 # Calculate the differences and convert them to a pandas
                 # dataframe
-                deltas_all = cd.calculate_differences_2212_fast(
+                deltas_all = cd.calculate_differences(
                     data_all, self.pixels, self.pix_coor
                 )
                 data_for_plot_df = pd.DataFrame.from_dict(

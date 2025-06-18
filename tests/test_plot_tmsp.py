@@ -2,7 +2,10 @@ import os
 import shutil
 import unittest
 
-from daplis.functions.sensor_plot import plot_sensor_population, plot_single_pix_hist
+from daplis.functions.sensor_plot import (
+    plot_sensor_population,
+    plot_single_pix_hist,
+)
 
 
 class TestPlotScripts(unittest.TestCase):
@@ -16,7 +19,9 @@ class TestPlotScripts(unittest.TestCase):
 
     def test_a_plot_pixel_hist(self):
         # Positive test case
-        os.chdir(r"{}".format(os.path.dirname(os.path.realpath(__file__)) + "/.."))
+        os.chdir(
+            r"{}".format(os.path.dirname(os.path.realpath(__file__)) + "/..")
+        )
 
         plot_single_pix_hist(
             self.path,
@@ -34,7 +39,9 @@ class TestPlotScripts(unittest.TestCase):
 
     def test_b_plot_sen_pop(self):
         # Positive test case
-        os.chdir(r"{}".format(os.path.dirname(os.path.realpath(__file__)) + "/.."))
+        os.chdir(
+            r"{}".format(os.path.dirname(os.path.realpath(__file__)) + "/..")
+        )
         plot_sensor_population(
             self.path,
             self.daughterboard_number,
@@ -51,23 +58,6 @@ class TestPlotScripts(unittest.TestCase):
                 "results/sensor_population/test_data_2212b-test_data_2212b.png"
             )
         )
-
-    # TODO: data for SPDC with background needed
-    # def test_c_plot_spdc(self):
-    #     # Positive test case
-    #     os.chdir(r"{}".format(os.path.realpath(__file__) + "/../.."))
-    #     plot_spdc(self.path, self.board_number, self.timestamps, show_fig=True)
-    #     self.assertTrue(
-    #         os.path.exists(
-    #             "results/test_data_2212b-test_data_2212b_SPDC_counts.png"
-    #         )
-    #     )
-
-    #     # Negative test case
-    #     with self.assertRaises(TypeError):
-    #         plot_spdc(
-    #             self.path, self.board_number, self.timestamps, show_fig="True"
-    #         )
 
     def tearDownClass():
         # Clean up after tests

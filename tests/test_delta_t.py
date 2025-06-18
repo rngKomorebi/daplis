@@ -6,7 +6,6 @@ import numpy as np
 
 from daplis.functions.delta_t import (
     calculate_and_save_timestamp_differences,
-    calculate_and_save_timestamp_differences_fast,
     collect_and_plot_timestamp_differences,
 )
 from daplis.functions.fits import (
@@ -76,7 +75,7 @@ class TestDeltasFull(unittest.TestCase):
         # os.chdir(work_dir)
 
         path = os.path.join(work_dir, self.partial_path)
-        calculate_and_save_timestamp_differences_fast(
+        calculate_and_save_timestamp_differences(
             path,
             self.pixels,
             self.rewrite,
