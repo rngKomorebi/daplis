@@ -70,11 +70,11 @@ virtualenv PATH/TO/NEW/ENVIRONMENT
 ```
 To activate the environment (on Windows):
 ```
-PATH/TO/NEW/ENVIRONMENTScripts/activate
+PATH/TO/NEW/ENVIRONMENT/Scripts/activate
 ```
 and on Linux:
 ```
-source PATH/TO/NEW/ENVIRONMENTbin/activate
+source PATH/TO/NEW/ENVIRONMENT/bin/activate
 ```
 
 Then, package itself can be installed using pip inside the environment:

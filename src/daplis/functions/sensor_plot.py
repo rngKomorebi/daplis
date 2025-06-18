@@ -226,7 +226,7 @@ def plot_single_pix_hist(
     if isinstance(motherboard_number, str) is not True:
         raise TypeError("'motherboard_number' should be a string")
 
-    def lin_fit(x, a, b):
+    def _lin_fit(x, a, b):
         return a * x + b
 
     if type(pixels) is int:
@@ -291,9 +291,9 @@ def plot_single_pix_hist(
                 a = 1
                 b = np.average(n)
 
-                par, _ = curve_fit(lin_fit, av_win_in, av_win, p0=[a, b])
+                par, _ = curve_fit(_lin_fit, av_win_in, av_win, p0=[a, b])
 
-                av_win_fit = lin_fit(av_win_in, par[0], par[1])
+                av_win_fit = _lin_fit(av_win_in, par[0], par[1])
 
             plt.xlabel("Time (ps)")
             plt.ylabel("Counts (-)")
@@ -544,163 +544,6 @@ def plot_sensor_population(
             pickle.dump(fig, open(f"{plot_name}.pickle", "wb"))
 
     os.chdir("../..")
-
-
-# TODO don't have data to test the function
-# def plot_sensor_population_spdc(
-#     path,
-#     daughterboard_number: str,
-#     motherboard_number: str,
-#     firmware_version: str,
-#     timestamps: int = 512,
-#     show_fig: bool = False,
-# ):
-#     """Plot sensor population for SPDC data.
-
-#     Plots SPDC data subtracting the background (data with the SPDC
-#     output turned off). Due to the low sensitivity of the LinoSPAD2
-#     sensor to light at 810 nm of Thorlabs SPDC output, subtracting
-#     background is required to show any meaningful signal.
-
-#     Parameters
-#     ----------
-#     path : str
-#         Path to data files.
-#     daughterboard_number : str
-#         LinoSPAD2 daughterboard number. Either "A5" or "NL11" is
-#         accepted.
-#     motherboard_number : str
-#         LinoSPAD2 motherboard number.
-#     timestamps : int, optional
-#         Number of timestamps per pixel per acquisition cycle. The
-#         default is 512.
-#     show_fig : bool, optional
-#         Switch for showing the plot. The default is False.
-
-#     Raises
-#     ------
-#     TypeError
-#         Raised when 'daughterboard_number' is not a string.
-#     ValueError
-#         Raised when the number of data files of SPDC data is different
-#         from the number of data files of background data.
-
-#     Returns
-#     -------
-#     None.
-
-#     """
-#     # parameter type check
-#     if isinstance(daughterboard_number, str) is not True:
-#         raise TypeError(
-#             "'daughterboard_number' should be string, either 'NL11' or 'A5'"
-#         )
-#     if isinstance(firmware_version, str) is not True:
-#         raise TypeError("'firmware_version' should be string")
-#     if isinstance(motherboard_number, str) is not True:
-#         raise TypeError(
-#             "'daughterboard_number' should be string, either 'NL11' or 'A5'"
-#         )
-
-#     if show_fig is True:
-#         plt.ion()
-#     else:
-#         plt.ioff()
-
-#     os.chdir(path)
-
-#     # files = glob.glob("*.dat*")
-
-#     files = glob.glob("*.dat*")
-#     files.sort(key=os.path.getmtime)
-
-#     # background data for subtracting
-#     path_bckg = path + "/bckg"
-#     os.chdir(path_bckg)
-#     files_bckg = glob.glob("*.dat*")
-#     os.chdir("..")
-
-#     if len(files) != len(files_bckg):
-#         raise ValueError(
-#             "Number of files with background data is different from the"
-#             "number of actual data, exiting."
-#         )
-
-#     plot_name = files[0][:-4] + "-" + files[-1][:-4]
-
-#     valid_per_pixel = np.zeros(256)
-#     valid_per_pixel_bckg = np.zeros(256)
-
-#     pix_coor = np.arange(256).reshape(64, 4)
-
-#     # Collect SPDC data
-#     for i in tqdm(range(len(files)), desc="Going through datafiles"):
-#         data_all = f_up.unpack_binary_data(
-#             files[i],
-#             daughterboard_number="A5",
-#             firmware_version="2212b",
-#             timestamps=timestamps,
-#         )
-
-#         for i in np.arange(0, 256):
-#             tdc, pix = np.argwhere(pix_coor == i)[0]
-#             ind = np.where(data_all[tdc].T[0] == pix)[0]
-#             ind1 = ind[np.where(data_all[tdc].T[1][ind] > 0)[0]]
-#             valid_per_pixel[i] += len(data_all[tdc].T[1][ind1])
-
-#     # Collect background data for subtracting
-#     os.chdir(path_bckg)
-
-#     for i in tqdm(
-#         range(len(files_bckg)), desc="Going through background datafiles"
-#     ):
-#         data_all_bckg = f_up.unpack_binary_data(
-#             files_bckg[i],
-#             daughterboard_number="A5",
-#             motherboard_number="34",
-#             firmware_version="2212b",
-#             timestamps=timestamps,
-#         )
-
-#         # Fot plotting counts
-#         for i in np.arange(0, 256):
-#             tdc, pix = np.argwhere(pix_coor == i)[0]
-#             ind = np.where(data_all_bckg[tdc].T[0] == pix)[0]
-#             ind1 = ind[np.where(data_all_bckg[tdc].T[1][ind] > 0)[0]]
-#             valid_per_pixel_bckg[i] += len(data_all_bckg[tdc].T[1][ind1])
-
-#     os.chdir("..")
-
-#     # Mask the hot/warm pixels
-#     path_to_back = os.getcwd()
-#     path_to_mask = os.path.realpath(__file__) + "/../.." + "/params/masks"
-#     os.chdir(path_to_mask)
-#     file_mask = glob.glob(
-#         "*{}_{}*".format(daughterboard_number, motherboard_number)
-#     )[0]
-#     mask = np.genfromtxt(file_mask).astype(int)
-#     os.chdir(path_to_back)
-
-#     for i in mask:
-#         valid_per_pixel[i] = 0
-#         valid_per_pixel_bckg[i] = 0
-
-#     plt.rcParams.update({"font.size": 22})
-#     plt.figure(figsize=(16, 10))
-#     plt.xlabel("Pixel [-]")
-#     plt.ylabel("Counts [-]")
-#     plt.title("SPDC data, background subtracted")
-#     plt.plot(valid_per_pixel - valid_per_pixel_bckg, "o-", color="teal")
-#     plt.tight_layout()
-
-#     try:
-#         os.chdir("results/sensor_population")
-#     except Exception:
-#         os.makedirs("results/sensor_population")
-#         os.chdir("results/sensor_population")
-#     plt.savefig("{}_SPDC_counts.png".format(plot_name))
-#     plt.pause(0.1)
-#     os.chdir("../..")
 
 
 def plot_sensor_population_full_sensor(

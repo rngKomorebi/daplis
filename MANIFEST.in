@@ -1,2 +1,3 @@
 include src/daplis/params/masks/*.txt
 include src/daplis/params/calibration_data/*.csv
+include src/daplis/params/calibration_data/*.npy

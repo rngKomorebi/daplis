@@ -1,6 +1,6 @@
 """Module with scripts for sharing (and plotting) data in a compact form.
 
-The module provides a simple and memory-friendly way of sharing data - 
+The module provides a simple and memory-friendly way of sharing data -
 that is processed '.dat' data in a form of a '.txt' file with number of
 timestamps collected by each pixel and a '.feather' file with timestamp
 differences. Additionally, function for plotting both the sensor
@@ -11,7 +11,7 @@ functions:
 
     * compact_share_feather - unpacks all '.dat' files in the given folder,
     collects the number of timestamps in each pixel and packs it into a
-    '.txt' file, calculates timestamp differences and packs them into a 
+    '.txt' file, calculates timestamp differences and packs them into a
     '.feather' file.
 
     * plot_shared - plots the sensor population plot from the '.txt'
@@ -183,8 +183,7 @@ def compact_share_feather(
                 apply_calibration,
             )
 
-        # TODO use faster version
-        deltas_all = cd.calculate_differences_2212(
+        deltas_all = cd.calculate_differences(
             data_all, pixels, pix_coor, delta_window
         )
 

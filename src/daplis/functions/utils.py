@@ -21,7 +21,10 @@ functions:
 
     * pixel_list_transform - Transform a list of pixels into two separate
     lists based on input type.
-    
+
+    * _correct_pix_address - pixel address correction, used internally
+    in the 'correct_pixels_address' function.
+
     * correct_pixels_address - correct the pixel addressing, the output
     has the same dimensions as the input. Should be used for motherboard
     on side "23" of the daughterboard.
@@ -29,15 +32,14 @@ functions:
     * file_rewrite_handling - based on the file name given and the
     boolean paramter 'rewrite', handles the file overwriting based on
     its' existence. Introduced for clearer code and modularity.
-    
+
     * error_propagation_division - propagate error for the division
     operation
-    
+
     * combine_feather_files - Combine multiple '.feather' files into one.
     Can be used in delta_t functions for collecting timestamp differences
     to alleviate bottlenecks in saving results or for combining files
-    manually for testing. 
-    
+    manually for testing.
 
 """
 
@@ -192,7 +194,10 @@ def fit_gaussian(x, y):
 
     # Perform the curve fitting
     popt, pcov = curve_fit(
-        gaussian, x, y, p0=[amp_guess, mu_guess, sigma_guess, bkg_guess]
+        gaussian,
+        x,
+        y,
+        p0=[amp_guess, mu_guess, sigma_guess, bkg_guess],
     )
 
     return popt, pcov
