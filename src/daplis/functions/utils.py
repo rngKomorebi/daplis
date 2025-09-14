@@ -43,12 +43,14 @@ functions:
 
 """
 
+from __future__ import annotations
+
 import os
 import pickle
 import sys
 import time
 from glob import glob
-from typing import List
+from typing import List, Union
 
 import matplotlib
 import numpy as np
@@ -255,7 +257,8 @@ def __correct_pix_address(pix: int):
     return pix
 
 
-def correct_pixels_address(pixels: List[int] | List[List[int]]):
+# def correct_pixels_address(pixels: List[int] | List[List[int]]):
+def correct_pixels_address(pixels: Union[List[int], List[List[int]]]):
     """Correct pixel address for all given pixels.
 
     Return the list with the same dimensions as the input.

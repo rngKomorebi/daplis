@@ -7,6 +7,8 @@ functions for data analysis using multiple CPU cores.
 
 """
 
+from __future__ import annotations
+
 import glob
 import multiprocessing
 import os

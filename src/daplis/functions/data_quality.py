@@ -34,12 +34,12 @@ functions:
 
     * load_data_from_feather - load the modification and creation time
     of data files from the feather file.
-    
+
     * sigma_of_count_spread_to_average - get timestamp differences from
     a '.feather' file, plot a histogram of background where no useful
     signal is, plot a jointplot of background signal including spread
     of the counts, plot and fit the spread using Gaussian.
-    
+
     * sigma_of_count_spread_to_average_from_ft_file - get timestamp
     differences from a '.feather' file, plot a histogram of background
     where no useful signal is, plot a jointplot of background signal
@@ -48,6 +48,8 @@ functions:
     required.
 
 """
+
+from __future__ import annotations
 
 import glob
 import os
@@ -696,7 +698,7 @@ def sigma_of_count_spread_to_average(
     ax.text(
         0.07,
         0.9,
-        f"\u03C3={pars[2]:.2f}\u00B1{np.sqrt(covs[2,2]):.2f}",
+        f"\u03c3={pars[2]:.2f}\u00b1{np.sqrt(covs[2,2]):.2f}",
         transform=ax.transAxes,
         fontsize=25,
         bbox=dict(
@@ -833,7 +835,7 @@ def sigma_of_count_spread_to_average_from_ft_file(
     ax.text(
         0.59,
         0.9,
-        f"\u03C3={pars[2]:.2f}\u00B1{np.sqrt(covs[2,2]):.2f}",
+        f"\u03c3={pars[2]:.2f}\u00b1{np.sqrt(covs[2,2]):.2f}",
         transform=ax.transAxes,
         fontsize=25,
         bbox=dict(
