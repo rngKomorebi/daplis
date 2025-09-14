@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2025-09-14
+
+Now compatible with python-3.9, new sensor_plot function.
+
+### Added
+
+- New function in the sensor_plot that returns rates on the y-axis.
+
+### Changed
+
+- Updated the mask for the B7d-#28 boards combination: new hot pixel added.
+
+
 ## [1.2.0] - 2025-06-14
 
 Added offset calibration, removed deprecated functions, updated doscstrings, added error workarounds.

@@ -48,6 +48,8 @@ functions:
     Can be used to presaved '.pkl' files for fine control over the plot.
 """
 
+from __future__ import annotations
+
 import glob
 import os
 import pickle

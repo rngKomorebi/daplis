@@ -16,12 +16,17 @@ functions:
     * plot_sensor_population - Plot number of timestamps in each pixel
     for all data files.
 
+    * plot_sensor_population_rates - Plot photon rate in each pixel
+    for all data files.
+
     * plot_sensor_population_spdc - Plot sensor population for SPDC data.
 
     * plot_sensor_population_full_sensor - Plot the number of timestamps
     in each pixel for all data files from two different FPGAs/sensor
     halves.
 """
+
+from __future__ import annotations
 
 import glob
 import os
@@ -50,6 +55,8 @@ def collect_data_and_apply_mask(
     save_to_file: bool = False,
     correct_pix_address: bool = False,
     calculate_rates: bool = False,
+    acq_window_length: float = None,
+    number_of_cycles: float = None,
 ) -> np.ndarray:
     """Collect data from files and apply mask to the valid pixel count.
 
@@ -79,6 +86,12 @@ def collect_data_and_apply_mask(
     calculate_rates : bool, optional
         Switch for calculating the photon rate for each pixel. The
         default is 'False'.
+    acq_window_length : float, optional
+        Length of each acquisition cycle; maximum is 4 ms. If None,
+        estimated from the data. The default is None.
+    number_of_cycles : float, optional
+        Number of acquisition cycles per data file. If None,
+        estimated from the data. The default is None.
     Returns
     -------
     np.ndarray
@@ -139,15 +152,18 @@ def collect_data_and_apply_mask(
         mask = utils.apply_mask(daughterboard_number, motherboard_number)
         timestamps_per_pixel[mask] = 0
 
-    acq_window_length = np.max(data[:].T[1]) * 1e-12
-    number_of_cycles = len(np.where(data[0].T[0] == -2)[0])
+    if calculate_rates:
+        if acq_window_length is None:
+            acq_window_length = np.max(data[:].T[1]) * 1e-12
+        if number_of_cycles is None:
+            number_of_cycles = len(np.where(data[0].T[0] == -2)[0])
 
-    rates = (
-        timestamps_per_pixel
-        / acq_window_length
-        / number_of_cycles
-        / len(files)
-    )
+        rates = (
+            timestamps_per_pixel
+            / acq_window_length
+            / number_of_cycles
+            / len(files)
+        )
 
     if save_to_file:
         files.sort(key=os.path.getmtime)
@@ -544,6 +560,197 @@ def plot_sensor_population(
             pickle.dump(fig, open(f"{plot_name}.pickle", "wb"))
 
     os.chdir("../..")
+
+
+def plot_sensor_population_rates(
+    path: str,
+    daughterboard_number: str,
+    motherboard_number: str,
+    firmware_version: str,
+    timestamps: int = 512,
+    scale: str = "linear",
+    style: str = "-o",
+    show_fig: bool = False,
+    app_mask: bool = True,
+    color: str = "rebeccapurple",
+    correct_pix_address: bool = False,
+    pickle_fig: bool = False,
+    absolute_timestamps: bool = False,
+    single_file: bool = False,
+) -> None:
+    """Plot number of timestamps in each pixel for all datafiles.
+
+    Plot sensor population as number of timestamps vs. pixel number.
+    Analyzes all data files in the given folder. The output figure is saved
+    in the "results" folder, which is created if it does not exist, in
+    the same folder where datafiles are. Works with the firmware version
+    '2212'.
+
+    Parameters
+    ----------
+    path : str
+        Path to the datafiles.
+    daughterboard_number : str
+        The LinoSPAD2 daughterboard number. Required for choosing the
+        correct calibration data.
+    motherboard_number : str
+        The LinoSPAD2 motherboard number, including the "#".
+    firmware_version : str
+        LinoSPAD2 firmware version. Versions '2212b' (block) or '2212s'
+        (skip) are recognized.
+    timestamps : int, optional
+        Number of timestamps per pixel per acquisition cycle. Default is
+        "512".
+    scale : str, optional
+        Scale for the y-axis of the plot. Use "log" for logarithmic.
+        The default is "linear".
+    style : str, optional
+        Style of the plot. The default is "-o".
+    show_fig : bool, optional
+        Switch for showing the plot. The default is False.
+    app_mask : bool, optional
+        Switch for applying the mask on warm/hot pixels. The default is
+        True.
+    color : str, optional
+        Color for the plot. The default is 'rebeccapurple'.
+    correct_pix_address : bool, optional
+        Switch for correcting pixel addressing for the faulty firmware
+        version for the 23 side of the daughterboard. The default is
+        False.
+    pickle_fig : bool, optional
+        Switch for pickling the figure. Can be used when plotting takes
+        a lot of time. The default is False.
+    absolute_timestamps : bool, optional
+        Indicator for data files with absolute timestamps. Default is
+        False.
+    single_file : optional
+        Switch for using only the first file in the folder. Can be
+        utilized for a quick plot. The default is False.
+
+    Returns
+    -------
+    None.
+
+    Examples
+    -------
+    An example how the function can be used to get the sensor
+    occupation from a single file while looking for peaks - the most
+    quick and straightforward approach to find where the beams were
+    focused and get the peak position for further use in, e.g., delta_t
+    functions. Here, the data were collected using the '23'-side
+    sensor half which required correction of the pixel addressing.
+    Offset calibration for the sensor is not available therefore
+    it should be skipped.
+
+    First, get the absolute path to where the '.dat' files are.
+    >>> path = r'C:/Path/To/Data'
+
+    Now to the function itself.
+    >>> plot_sensor_popuation(
+    >>> path,
+    >>> daughterboard_number="NL11",
+    >>> motherboard_number="#21",
+    >>> firmware_version="2212s",
+    >>> timestamps = 1000,
+    >>> show_fig = True,
+    >>> correct_pix_address = True,
+    >>> fit_peaks = True,
+    >>> single_file = True,
+    >>> )
+    """
+    # parameter type check
+    if not isinstance(firmware_version, str):
+        raise TypeError(
+            "'firmware_version' should be a string, '2212b' or '2212s'"
+        )
+    if not isinstance(daughterboard_number, str):
+        raise TypeError(
+            "'daughterboard_number' should be a string, 'NL11' or 'A5'"
+        )
+    if not isinstance(motherboard_number, str):
+        raise TypeError("'motherboard_number' should be a string")
+    if show_fig:
+        plt.ion()
+    else:
+        plt.ioff()
+
+    os.chdir(path)
+
+    files = glob.glob("*.dat*")
+    files.sort(key=os.path.getmtime)
+
+    if single_file:
+        files = files[0]
+        plot_name = files[:-4]
+    else:
+        plot_name = files[0][:-4] + "-" + files[-1][:-4]
+
+    print(
+        "\n> > > Collecting data for sensor population plot,"
+        f"Working in {path} < < <\n"
+    )
+
+    # If fitting the peaks, calculate the photon rates in each peak as
+    # well
+    _, rates = collect_data_and_apply_mask(
+        files,
+        daughterboard_number,
+        motherboard_number,
+        firmware_version,
+        timestamps,
+        app_mask,
+        absolute_timestamps,
+        save_to_file=False,
+        correct_pix_address=correct_pix_address,
+        calculate_rates=True,
+    )
+
+    # Plotting
+    print("\n> > > Plotting < < <\n")
+    plt.rcParams.update({"font.size": 27})
+    fig = plt.figure(figsize=(16, 10))
+    if scale == "log":
+        plt.yscale("log")
+    if np.max(rates) > 1e3:
+        plt.plot(rates / 1e3, style, color=color)
+        plt.ylabel("Photon rate (kHz)")
+    elif np.max(rates) > 1e6:
+        plt.plot(rates / 1e6, style, color=color)
+        plt.ylabel("Photon rate (MHz)")
+    else:
+        plt.plot(rates, style, color=color)
+        plt.ylabel("Photon rate (Hz)")
+    plt.xlabel("Pixel number (-)")
+
+    # Save the figure
+    try:
+        os.chdir("results/sensor_population")
+    except FileNotFoundError:
+        os.makedirs("results/sensor_population")
+        os.chdir("results/sensor_population")
+    # fig.tight_layout()
+    if single_file:
+        plt.savefig(f"{plot_name}_single_file_ver2.png")
+        print(
+            "> > > The plot is saved as '{plot_name}_rates_single_file.png'"
+            "in {os.getcwd()} < < <"
+        )
+        if pickle_fig:
+            pickle.dump(
+                fig, open(f"{plot_name}_rates_single_file.pickle", "wb")
+            )
+    else:
+        plt.savefig(f"{plot_name}.png")
+        print(
+            f"> > > The plot is saved as '{plot_name}_rates.png' "
+            f"in {os.getcwd()} < < <"
+        )
+        if pickle_fig:
+            pickle.dump(fig, open(f"{plot_name}_rates.pickle", "wb"))
+
+    os.chdir("../..")
+
+    return fig
 
 
 def plot_sensor_population_full_sensor(
