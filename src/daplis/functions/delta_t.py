@@ -1475,7 +1475,7 @@ def collect_and_plot_timestamp_differences(
         "\n> > > Plotting timestamps differences as a grid of histograms < < <"
     )
 
-    plt.rcParams.update({"font.size": 27})
+    plt.rcParams.update({"font.size": 30})
     # In the case two lists given - the left and right peaks - _flatten
     # into a single list
 
@@ -1490,6 +1490,8 @@ def collect_and_plot_timestamp_differences(
                 pixels[i] = pixels[i] + 128
 
     pixels = _flatten(pixels)
+    # TODO test
+    # pixels_left, pixels_right = utils.pixel_list_transform(pixels)
 
     if len(pixels) > 2:
         fig, axs = plt.subplots(
@@ -1553,11 +1555,11 @@ def collect_and_plot_timestamp_differences(
                         "calibration is not applied."
                     )
                     pass
-            else:
-                print(
-                    "No '.npy' file with offset calibration was provided. "
-                    "Offset calibration is not included."
-                )
+            # else:
+            #     print(
+            #         "No '.npy' file with offset calibration was provided. "
+            #         "Offset calibration is not included."
+            #     )
 
             # Bins should be in units of 17.857 ps - average bin width
             # of the LinoSPAD2 TDCs
@@ -1782,7 +1784,7 @@ def collect_and_plot_timestamp_differences_full_sensor(
     print(
         "\n> > > Plotting timestamps differences as a grid of histograms < < <"
     )
-    plt.rcParams.update({"font.size": 27})
+    plt.rcParams.update({"font.size": 30})
     # Prepare the grid for the plots based on the number of pixels
     # given
     if len(pixels) > 2:

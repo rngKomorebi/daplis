@@ -54,8 +54,10 @@ def fit_with_gaussian(
     path: str,
     pixels: List[int] | List[List[int]],
     ft_file: str = None,
-    window: float = 5e3,
+    range_left: float = -5e3,
+    range_right: float = 5e3,
     multiplier: int = 1,
+    normalize: bool = False,
     color_data: str = "rebeccapurple",
     color_fit: str = "darkorange",
     title_on: bool = True,
@@ -83,13 +85,16 @@ def fit_with_gaussian(
     ft_file : str, optional
         Name of the '.feather' file to use for plotting. Can be used
         when the raw '.dat' data is not available. The default is None.
-    window : float, optional
-        Time range in which timestamp differences are fitted. The
-        default is 5e3.
+    range_left : float, optional
+        Left limit for the signal window. The default is -5e3.
+    range_right : float, optional
+        Right limit for the signal window. The default is 5e3.
     multiplier : int, optional
         Bins of delta t histogram should be in units of 17.857 (average
         LinoSPAD2 TDC bin width), this parameter helps with changing the
         bin size while maintaining that rule. Default is 1.
+    normalize : bool, optional
+        Switch for normalizing the plot to median. The default is False.
     color_data : str, optional
         For changing the color of the data. The default is "rebeccapurple".
     color_fit : str, optional
@@ -180,14 +185,14 @@ def fit_with_gaussian(
 
             # Use the given window for trimming the data for fitting
             data_to_plot = np.delete(
-                data_to_plot, np.argwhere(data_to_plot < -window)
+                data_to_plot, np.argwhere(data_to_plot < range_left)
             )
             data_to_plot = np.delete(
-                data_to_plot, np.argwhere(data_to_plot > window)
+                data_to_plot, np.argwhere(data_to_plot > range_right)
             )
 
             os.chdir(path)
-            plt.rcParams.update({"font.size": 27})
+            plt.rcParams.update({"font.size": 30})
 
             # Bins must be in units of 17.857 ps (2500/140)
             bins = np.arange(
@@ -204,15 +209,6 @@ def fit_with_gaussian(
                 n_argmax = np.argmax(n)
             except ValueError:
                 print("Couldn't find position of histogram max")
-
-            data_to_plot = np.delete(
-                data_to_plot,
-                np.argwhere(data_to_plot < b[n_argmax] - window / 2),
-            )
-            data_to_plot = np.delete(
-                data_to_plot,
-                np.argwhere(data_to_plot > b[n_argmax] + window / 2),
-            )
 
             if file_offset_abs is not None:
                 try:
@@ -236,6 +232,9 @@ def fit_with_gaussian(
             )
 
             n, b = np.histogram(data_to_plot, bins)
+
+            if normalize:
+                n = n / np.median(n)
 
             bin_centers = (b - 2500 / 140 * multiplier / 2)[1:]
 
@@ -281,6 +280,7 @@ def fit_with_gaussian(
                 fit_params[f"{pix_left},{pix_right}"] = params_df
 
             fig = plt.figure(figsize=(16, 10))
+            fig.subplots_adjust(top=0.94, right=0.93)
             plt.locator_params(axis="x", nbins=5)
             plt.xlabel(r"$\Delta$t (ps)")
             plt.ylabel("# of coincidences (-)")
@@ -288,24 +288,24 @@ def fit_with_gaussian(
                 b[1:],
                 n,
                 color=color_data,
-                label="data",
+                label="Data",
             )
             plt.plot(
                 to_fit_b,
                 to_fit_n,
                 "-",
                 color=color_fit,
-                label="fit\n"
+                label="Gaussian fit\n"
                 "\u03c3=({p1}\u00b1{pe1}) ps\n"
                 "\u03bc=({p2}\u00b1{pe2}) ps\n"
-                "C=({contrast}\u00b1{contrast_error}) %\n"
-                "bkg={bkg}\u00b1{bkg_er}".format(
+                "C=({contrast}\u00b1{contrast_error}) %\n".format(
+                    # "bkg={bkg}\u00b1{bkg_er}".format(
                     p1=format(par[2], ".0f"),
                     p2=format(par[1], ".0f"),
                     pe1=format(perr[2], ".0f"),
                     pe2=format(perr[1], ".0f"),
-                    bkg=format(par[3], ".0f"),
-                    bkg_er=format(perr[3], ".0f"),
+                    # bkg=format(par[3], ".0f"),
+                    # bkg_er=format(perr[3], ".0f"),
                     contrast=format(contrast, ".1f"),
                     contrast_error=format(contrast_error, ".1f"),
                 ),
@@ -322,8 +322,6 @@ def fit_with_gaussian(
             except FileNotFoundError:
                 os.makedirs("results/fits")
                 os.chdir("results/fits")
-
-            # fig.tight_layout()  # for perfect spacing between the plots
 
             plt.savefig(f"{file_name}_pixels_{pix_left},{pix_right}_fit.png")
 
@@ -343,8 +341,10 @@ def fit_with_gaussian_combine(
     path: str,
     pixels: List[int] | List[List[int]],
     ft_file: str = None,
-    window: float = 5e3,
+    range_left: float = -5e3,
+    range_right: float = 5e3,
     multiplier: int = 1,
+    normalize: bool = False,
     color_data: str = "rebeccapurple",
     color_fit: str = "darkorange",
     title_on: bool = True,
@@ -373,13 +373,16 @@ def fit_with_gaussian_combine(
     ft_file : str, optional
         Name of the '.feather' file to use for plotting. Can be used
         when the raw '.dat' data is not available. The default is None.
-    window : float, optional
-        Time range in which timestamp differences are fitted. The
-        default is 5e3.
+    range_left : float, optional
+        Left limit for the signal window. The default is -5e3.
+    range_right : float, optional
+        Right limit for the signal window. The default is 5e3.
     multiplier : int, optional
         Bins of delta t histogram should be in units of 17.857 (average
         LinoSPAD2 TDC bin width), this parameter helps with changing the
         bin size while maintaining that rule. Default is 1.
+    normalize : bool, optional
+        Switch for normalizing the plot to median. The default is False.
     color_data : str, optional
         For changing the color of the data. The default is "rebeccapurple".
     color_fit : str, optional
@@ -470,14 +473,14 @@ def fit_with_gaussian_combine(
 
             # Use the given window for trimming the data for fitting
             data_to_plot = np.delete(
-                data_to_plot, np.argwhere(data_to_plot < -window)
+                data_to_plot, np.argwhere(data_to_plot < range_left)
             )
             data_to_plot = np.delete(
-                data_to_plot, np.argwhere(data_to_plot > window)
+                data_to_plot, np.argwhere(data_to_plot > range_right)
             )
 
             os.chdir(path)
-            plt.rcParams.update({"font.size": 27})
+            plt.rcParams.update({"font.size": 30})
 
             # Bins must be in units of 17.857 ps (2500/140)
             bins = np.arange(
@@ -495,14 +498,14 @@ def fit_with_gaussian_combine(
             except ValueError:
                 print("Couldn't find position of histogram max")
 
-            data_to_plot = np.delete(
-                data_to_plot,
-                np.argwhere(data_to_plot < b[n_argmax] - window / 2),
-            )
-            data_to_plot = np.delete(
-                data_to_plot,
-                np.argwhere(data_to_plot > b[n_argmax] + window / 2),
-            )
+            # data_to_plot = np.delete(
+            #     data_to_plot,
+            #     np.argwhere(data_to_plot < b[n_argmax] - range_left / 2),
+            # )
+            # data_to_plot = np.delete(
+            #     data_to_plot,
+            #     np.argwhere(data_to_plot > b[n_argmax] + range_right / 2),
+            # )
 
             if file_offset_abs is not None:
                 try:
@@ -528,6 +531,9 @@ def fit_with_gaussian_combine(
     )
 
     n, b = np.histogram(data_merged, bins)
+
+    if normalize:
+        n = n / np.median(n)
 
     bin_centers = (b - 2500 / 140 * multiplier / 2)[1:]
 
@@ -573,6 +579,7 @@ def fit_with_gaussian_combine(
         fit_params[f"{pixels_left},{pixels_right}"] = params_df
 
     fig = plt.figure(figsize=(16, 10))
+    fig.subplots_adjust(top=0.94, right=0.93)
     plt.locator_params(axis="x", nbins=5)
     plt.xlabel(r"$\Delta$t (ps)")
     plt.ylabel("# of coincidences (-)")
@@ -580,24 +587,24 @@ def fit_with_gaussian_combine(
         b[1:],
         n,
         color=color_data,
-        label="data",
+        label="Data",
     )
     plt.plot(
         to_fit_b,
         to_fit_n,
         "-",
         color=color_fit,
-        label="fit\n"
+        label="Gaussian fit\n"
         "\u03c3=({p1}\u00b1{pe1}) ps\n"
         "\u03bc=({p2}\u00b1{pe2}) ps\n"
-        "C=({contrast}\u00b1{contrast_error}) %\n"
-        "bkg={bkg}\u00b1{bkg_er}".format(
+        "C=({contrast}\u00b1{contrast_error}) %\n".format(
+            # "bkg={bkg}\u00b1{bkg_er}".format(
             p1=format(par[2], ".0f"),
             p2=format(par[1], ".0f"),
             pe1=format(perr[2], ".0f"),
             pe2=format(perr[1], ".0f"),
-            bkg=format(par[3], ".0f"),
-            bkg_er=format(perr[3], ".0f"),
+            # bkg=format(par[3], ".0f"),
+            # bkg_er=format(perr[3], ".0f"),
             contrast=format(contrast, ".1f"),
             contrast_error=format(contrast_error, ".1f"),
         ),
@@ -636,8 +643,10 @@ def fit_with_gaussian_all(
     pixels: List[int] | List[List[int]],
     ft_file: str = None,
     threshold_multiplier: float = 1.2,
-    window: float = 5e3,
+    range_left: float = -5e3,
+    range_right: float = 5e3,
     multiplier: int = 1,
+    normalize: bool = False,
     color_d: str = "rebeccapurple",
     color_f: str = "darkorange",
     title_on: bool = True,
@@ -667,12 +676,15 @@ def fit_with_gaussian_all(
         Multiplier for the median of the histogram counts. Used for
         setting a threshold for the peak discovery in the histogram.
         The default is 1.2, or 20% above the median.
-    window : float, optional
-        Time range in which timestamp differences are fitted. The
-        default is 5e3.
+    range_left : float, optional
+        Left limit for the signal window. The default is -5e3.
+    range_right : float, optional
+        Right limit for the signal window. The default is 5e3.
     multiplier : int, optional
         Bins of delta t histogram should be in units of 17.857 (average
         LinoSPAD2 TDC bin width). Default is 1.
+    normalize : bool, optional
+        Switch for normalizing the plot to median. The default is False.
     color_d : str, optional
         Color for the histogram. The default is "rebeccapurple".
     color_f : str, optional
@@ -758,14 +770,14 @@ def fit_with_gaussian_all(
 
             # Use the given window for trimming the data for fitting
             data_to_plot = np.delete(
-                data_to_plot, np.argwhere(data_to_plot < -window)
+                data_to_plot, np.argwhere(data_to_plot < range_left)
             )
             data_to_plot = np.delete(
-                data_to_plot, np.argwhere(data_to_plot > window)
+                data_to_plot, np.argwhere(data_to_plot > range_right)
             )
 
             os.chdir(path)
-            plt.rcParams.update({"font.size": 27})
+            plt.rcParams.update({"font.size": 30})
 
             # Bins must be in units of 17.857 ps (2500/140)
             bins = np.arange(
@@ -778,6 +790,9 @@ def fit_with_gaussian_all(
             # of fit parameters and selecting a narrower window for the fit
             n, b = np.histogram(data_to_plot, bins)
 
+            if normalize:
+                n = n / np.median(n)
+
             bin_c = (b - (b[1] - b[0]) / 2)[1:]
 
             peak_pos = sg.find_peaks(
@@ -785,13 +800,14 @@ def fit_with_gaussian_all(
             )[0]
 
             fig = plt.figure(figsize=(16, 10))
+            fig.subplots_adjust(top=0.94, right=0.93)
             plt.xlabel(r"$\Delta$t (ps)")
             plt.ylabel("# of coincidences (-)")
             plt.step(
                 bin_c,
                 n,
                 color=color_d,
-                label="data",
+                label="Data",
             )
 
             color_f = [
@@ -855,6 +871,9 @@ def fit_with_gaussian_all(
                 )
 
                 counts, bin_edges = np.histogram(data_to_fit, bins)
+
+                if normalize:
+                    counts = counts / np.median(counts)
 
                 bin_centers = (bin_edges - (bin_edges[1] - bin_edges[0]) / 2)[
                     1:
@@ -928,7 +947,7 @@ def fit_with_gaussian_all(
             if return_fit_params:
                 fit_params[f"{pix_left},{pix_right}"] = params_df
 
-            plt.xlim(-window, window)
+            plt.xlim(range_left, range_right)
             plt.legend(loc="best")
             if title_on is True:
                 plt.title(
@@ -1072,7 +1091,7 @@ def fit_with_gaussian_full_sensor(
     data_to_plot = np.delete(data_to_plot, np.argwhere(data_to_plot > window))
 
     os.chdir("..")
-    plt.rcParams.update({"font.size": 27})
+    plt.rcParams.update({"font.size": 30})
 
     # Bins must be in units of 17.857 ps (2500/140)
     bins = np.arange(
@@ -1123,30 +1142,31 @@ def fit_with_gaussian_full_sensor(
     contrast_error = contrast_error * 100
 
     fig = plt.figure(figsize=(16, 10))
+    fig.subplots_adjust(top=0.94, right=0.93)
     plt.xlabel(r"$\Delta$t (ps)")
     plt.ylabel("# of coincidences (-)")
     plt.step(
         b[1:],
         n,
         color=color_data,
-        label="data",
+        label="Data",
     )
     plt.plot(
         to_fit_b,
         to_fit_n,
         "-",
         color=color_fit,
-        label="fit\n"
+        label="Gaussian fit\n"
         "\u03c3=({p1}\u00b1{pe1}) ps\n"
         "\u03bc=({p2}\u00b1{pe2}) ps\n"
-        "C=({contrast}\u00b1{vis_er}) %\n"
-        "bkg={bkg}\u00b1{bkg_er}".format(
+        "C=({contrast}\u00b1{vis_er}) %\n".format(
+            # "bkg={bkg}\u00b1{bkg_er}".format(
             p1=format(par[2], ".0f"),
             p2=format(par[1], ".0f"),
             pe1=format(perr[2], ".0f"),
             pe2=format(perr[1], ".0f"),
-            bkg=format(par[3], ".0f"),
-            bkg_er=format(perr[3], ".0f"),
+            # bkg=format(par[3], ".0f"),
+            # bkg_er=format(perr[3], ".0f"),
             contrast=format(contrast, ".1f"),
             vis_er=format(contrast_error, ".1f"),
         ),
@@ -1392,13 +1412,14 @@ def fit_with_gaussian_fancy(
                 )
 
             # Plot results
-            plt.rcParams.update({"font.size": 27})
+            plt.rcParams.update({"font.size": 30})
             fig, ((ax1, _), (ax2, ax3)) = plt.subplots(
                 2,
                 2,
                 figsize=(16, 10),
                 gridspec_kw={"width_ratios": [3, 1], "height_ratios": [3, 1]},
             )
+            fig.subplots_adjust(top=0.94, right=0.93)
 
             # Data + fit
             ax1.plot(
@@ -1418,15 +1439,37 @@ def fit_with_gaussian_fancy(
                     label="Gaussian fit",
                     color="darkorange",
                 )
-            ax1.set_ylabel("Counts (-)")
-            # ax1.yaxis.set_label_coords(-0.105, 0.5)
+            if normalize:
+                ax1.set_ylabel("Norm. coincidences (-)")
+
+            else:
+                ax1.set_ylabel("Coincidences (-)")
+
             ax1.set_xticks([], [])
             ax1.legend()
             ax1.set_xlim(
-                result.params["center"].value - 2.5e3,
-                result.params["center"].value + 2.5e3,
+                range_left,
+                range_right,
             )
 
+            if normalize:
+                contrast = result.params["height"].value * 100
+                contrast_stderr = result.params["height"].stderr * 100
+            else:
+                contrast = (
+                    result.params["height"].value
+                    / result.params["intercept"].value
+                    * 100
+                )
+                contrast_stderr = (
+                    utils.error_propagation_division(
+                        result.params["height"].value,
+                        result.params["height"].stderr,
+                        result.params["intercept"].value,
+                        result.params["intercept"].stderr,
+                    )
+                    * 100
+                )
             # Parameters
             try:
                 fit_params_text = "\n".join(
@@ -1437,8 +1480,7 @@ def fit_with_gaussian_fancy(
                         f"±{result.params['sigma'].stderr:.0f}) ps",
                         f"$\mu$: ({result.params['center'].value:.0f}"
                         f"±{result.params['center'].stderr:.0f}) ps",
-                        f"C: ({result.params['height'].value*100:.0f}"
-                        f"±{result.params['height'].stderr*100:.0f}) %",
+                        f"C: ({contrast:.0f}" f"±{contrast_stderr:.0f}) %",
                         f"SNR: {result.params['height'] / bckg_stderr:.0f} $\sigma$",
                     ]
                 )
@@ -1470,10 +1512,15 @@ def fit_with_gaussian_fancy(
             ax2_lines[0].set_color("black")
             ax2_lines[1].set_color("rebeccapurple")
             ax2.set_xlim(
-                result.params["center"].value - 2.5e3,
-                result.params["center"].value + 2.5e3,
+                range_left,
+                range_right,
             )
-
+            ax2.set_xticks(np.linspace(range_left + 1e3, range_right - 1e3, 3))
+            ax2.set_xticklabels(
+                np.linspace(
+                    range_left + 1e3, range_right - 1e3, 3, dtype=np.int32
+                )
+            )
             # Plot the distribution of residuals with a Gaussian fit
             residuals = counts - result.best_fit
             counts_residuals, bins_residuals = np.histogram(residuals, bins=20)
