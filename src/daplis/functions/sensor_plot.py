@@ -192,7 +192,6 @@ def plot_single_pix_hist(
     timestamps: int = 512,
     cycle_length: float = 4e9,
     multiplier: int = 1e6,
-    show_fig: bool = False,
     fit_average: bool = False,
     color: str = "teal",
 ):
@@ -221,8 +220,6 @@ def plot_single_pix_hist(
     multiplier : int, optional
         Multiplier of 17.857 for the bin size of the histogram. The
         default is 1e6.
-    show_fig : bool, optional
-        Switch for showing the output figure. The default is False.
     fit_average : int, optional
         Switch for fitting averages of histogram counts in windows of
         +/-10. The default is False.
@@ -254,10 +251,6 @@ def plot_single_pix_hist(
     data_files = glob.glob("*.dat*")
     data_files.sort(key=os.path.getmtime)
 
-    if show_fig is True:
-        plt.ion()
-    else:
-        plt.ioff()
     for i, num in enumerate(data_files):
         print(f"> > > Plotting pixel histograms, Working on {num} < < <\n")
 
@@ -280,7 +273,7 @@ def plot_single_pix_hist(
 
         for i, _ in enumerate(pixels):
             plt.figure(figsize=(16, 10))
-            plt.rcParams.update({"font.size": 27})
+            plt.rcParams.update({"font.size": 30})
             # Define matrix of pixel coordinates, where rows are numbers
             # of TDCs and columns are the pixels that connected to
             # these TDCs
@@ -336,7 +329,6 @@ def plot_sensor_population(
     timestamps: int = 512,
     scale: str = "linear",
     style: str = "-o",
-    show_fig: bool = False,
     app_mask: bool = True,
     color: str = "rebeccapurple",
     correct_pix_address: bool = False,
@@ -374,8 +366,6 @@ def plot_sensor_population(
         The default is "linear".
     style : str, optional
         Style of the plot. The default is "-o".
-    show_fig : bool, optional
-        Switch for showing the plot. The default is False.
     app_mask : bool, optional
         Switch for applying the mask on warm/hot pixels. The default is
         True.
@@ -426,7 +416,6 @@ def plot_sensor_population(
     >>> motherboard_number="#21",
     >>> firmware_version="2212s",
     >>> timestamps = 1000,
-    >>> show_fig = True,
     >>> correct_pix_address = True,
     >>> fit_peaks = True,
     >>> single_file = True,
@@ -443,10 +432,6 @@ def plot_sensor_population(
         )
     if not isinstance(motherboard_number, str):
         raise TypeError("'motherboard_number' should be a string")
-    if show_fig:
-        plt.ion()
-    else:
-        plt.ioff()
 
     os.chdir(path)
 
@@ -497,8 +482,9 @@ def plot_sensor_population(
 
     # Plotting
     print("\n> > > Plotting < < <\n")
-    plt.rcParams.update({"font.size": 27})
+    plt.rcParams.update({"font.size": 30})
     fig = plt.figure(figsize=(16, 10))
+    fig.subplots_adjust(top=0.94, right=0.93)
     if scale == "log":
         plt.yscale("log")
     plt.plot(timestamps_per_pixel, style, color=color)
@@ -570,7 +556,6 @@ def plot_sensor_population_rates(
     timestamps: int = 512,
     scale: str = "linear",
     style: str = "-o",
-    show_fig: bool = False,
     app_mask: bool = True,
     color: str = "rebeccapurple",
     correct_pix_address: bool = False,
@@ -606,8 +591,6 @@ def plot_sensor_population_rates(
         The default is "linear".
     style : str, optional
         Style of the plot. The default is "-o".
-    show_fig : bool, optional
-        Switch for showing the plot. The default is False.
     app_mask : bool, optional
         Switch for applying the mask on warm/hot pixels. The default is
         True.
@@ -652,7 +635,6 @@ def plot_sensor_population_rates(
     >>> motherboard_number="#21",
     >>> firmware_version="2212s",
     >>> timestamps = 1000,
-    >>> show_fig = True,
     >>> correct_pix_address = True,
     >>> fit_peaks = True,
     >>> single_file = True,
@@ -669,10 +651,6 @@ def plot_sensor_population_rates(
         )
     if not isinstance(motherboard_number, str):
         raise TypeError("'motherboard_number' should be a string")
-    if show_fig:
-        plt.ion()
-    else:
-        plt.ioff()
 
     os.chdir(path)
 
@@ -707,8 +685,9 @@ def plot_sensor_population_rates(
 
     # Plotting
     print("\n> > > Plotting < < <\n")
-    plt.rcParams.update({"font.size": 27})
+    plt.rcParams.update({"font.size": 30})
     fig = plt.figure(figsize=(16, 10))
+    fig.subplots_adjust(top=0.94, right=0.93)
     if scale == "log":
         plt.yscale("log")
     if np.max(rates) > 1e3:
@@ -762,7 +741,6 @@ def plot_sensor_population_full_sensor(
     timestamps: int = 512,
     scale: str = "linear",
     style: str = "-o",
-    show_fig: bool = False,
     app_mask: bool = True,
     color: str = "salmon",
     fit_peaks: bool = False,
@@ -801,8 +779,6 @@ def plot_sensor_population_full_sensor(
         The default is "linear".
     style : str, optional
         Style of the plot. The default is "-o".
-    show_fig : bool, optional
-        Switch for showing the plot. The default is False.
     app_mask : bool, optional
         Switch for applying the mask on warm/hot pixels. The default is
         True.
@@ -855,10 +831,6 @@ def plot_sensor_population_full_sensor(
         raise TypeError("'motherboard_number1' should be a string")
     if not isinstance(motherboard_number2, str):
         raise TypeError("'motherboard_number2' should be a string")
-    if show_fig:
-        plt.ion()
-    else:
-        plt.ioff()
 
     valid_per_pixel1 = np.zeros(256)
     valid_per_pixel2 = np.zeros(256)
@@ -932,8 +904,9 @@ def plot_sensor_population_full_sensor(
 
     print("\n> > > Plotting < < <\n")
 
-    plt.rcParams.update({"font.size": 27})
+    plt.rcParams.update({"font.size": 30})
     fig = plt.figure(figsize=(16, 10))
+    fig.subplots_adjust(top=0.94, right=0.93)
     if scale == "log":
         plt.yscale("log")
     plt.plot(valid_per_pixel, style, color=color)

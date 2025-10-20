@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2025-10-20
+
+Better plots, more control over fitting functions.
+
+### Added
+
+- Normalization to each fitting function.
+
+### Changed
+
+- Font size for all single plots (so except for the delta_t plot which can be a grid of plots) from 27 to 30 for better readability.
+
+- The 'window' parameter to 'range_left' and 'range_right' to all fitting functions for more control over the window where the fit is done.
+
+- Cleaned up the 'fancy' lmfit fitting function for better readability and contrast without normalization which makes sense.
+
+### Removed
+
+- Redundant parameters from some of the plotting functions, like 'show_fig' which sometimes brakes how the plots are shown after running the plotting functions.
+
+
 ## [1.3.0] - 2025-09-14
 
 Now compatible with python-3.9, new sensor_plot function.
