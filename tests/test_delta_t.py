@@ -32,7 +32,8 @@ class TestDeltasFull(unittest.TestCase):
         self.range_left = -20e3
         self.range_right = 20e3
         self.same_y = False
-        self.app_mask = True
+        self.cycle_length = 4e9
+        self.apply_mask = True
         self.include_offset = False
 
     def test_a_deltas_save_positive(self):
@@ -51,41 +52,9 @@ class TestDeltasFull(unittest.TestCase):
             self.firmware_version,
             self.timestamps,
             self.delta_window,
-            self.app_mask,
+            self.cycle_length,
+            self.apply_mask,
             self.include_offset,
-        )
-
-        os.chdir(
-            os.path.join(
-                os.path.dirname(os.path.realpath(__file__)), "test_data"
-            )
-        )
-
-        # Check if the csv file is created
-        self.assertTrue(
-            os.path.isfile(
-                "delta_ts_data/test_data_2212b-test_data_2212b.feather"
-            )
-        )
-
-    def test_a_deltas_save_fast_positive(self):
-        # Test positive case for deltas_save function
-        work_dir = os.path.dirname(os.path.realpath(__file__)) + "/.."
-
-        # os.chdir(work_dir)
-
-        path = os.path.join(work_dir, self.partial_path)
-        calculate_and_save_timestamp_differences(
-            path,
-            self.pixels,
-            self.rewrite,
-            self.daughterboard_number,
-            self.motherboard_number,
-            self.firmware_version,
-            self.timestamps,
-            self.delta_window,
-            app_mask=self.app_mask,
-            include_offset=self.include_offset,
         )
 
         os.chdir(
@@ -155,15 +124,17 @@ class TestDeltasFull(unittest.TestCase):
 
         path = os.path.join(work_dir, self.partial_path)
         pixels = [67, 174]
-        window = 20e3
-        multiplier = 5
+        range_left = -5e3
+        range_right = 5e3
+        multiplier = 3
 
         # Call the function
         fit_with_gaussian(
             path,
             pixels,
             ft_file=None,
-            window=window,
+            range_left=range_left,
+            range_right=range_right,
             multiplier=multiplier,
         )
 
@@ -193,7 +164,8 @@ class TestDeltasFull(unittest.TestCase):
             path,
             pixels=pixels,
             ft_file=ft_file,
-            window=10e3,
+            range_left=-10e3,
+            range_right=10e3,
             multiplier=5,
         )
 
@@ -237,7 +209,8 @@ class TestDeltasFull(unittest.TestCase):
 
         path = os.path.join(work_dir, self.partial_path)
         pixels = [67, 174]
-        window = 20e3
+        range_left = -15e3
+        range_right = 15e3
         multiplier = 5
 
         # Call the function
@@ -245,7 +218,8 @@ class TestDeltasFull(unittest.TestCase):
             path,
             pixels,
             ft_file=None,
-            window=window,
+            range_left=range_left,
+            range_right=range_right,
             multiplier=multiplier,
             pickle_figure=True,
         )
@@ -273,7 +247,8 @@ class TestDeltasFull(unittest.TestCase):
             path,
             pixels=pixels,
             ft_file=ft_file,
-            window=10e3,
+            range_left=-10e3,
+            range_right=10e3,
             multiplier=5,
             pickle_figure=True,
         )

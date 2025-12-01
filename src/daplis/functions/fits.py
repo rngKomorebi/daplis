@@ -39,6 +39,7 @@ import pickle
 import re
 from typing import List
 
+import matplotlib as mpl
 import numpy as np
 import pandas as pd
 from lmfit.models import GaussianModel, LinearModel
@@ -298,7 +299,7 @@ def fit_with_gaussian(
                 label="Gaussian fit\n"
                 "\u03c3=({p1}\u00b1{pe1}) ps\n"
                 "\u03bc=({p2}\u00b1{pe2}) ps\n"
-                "C=({contrast}\u00b1{contrast_error}) %\n".format(
+                "C=({contrast}\u00b1{contrast_error}) %".format(
                     # "bkg={bkg}\u00b1{bkg_er}".format(
                     p1=format(par[2], ".0f"),
                     p2=format(par[1], ".0f"),
@@ -597,7 +598,7 @@ def fit_with_gaussian_combine(
         label="Gaussian fit\n"
         "\u03c3=({p1}\u00b1{pe1}) ps\n"
         "\u03bc=({p2}\u00b1{pe2}) ps\n"
-        "C=({contrast}\u00b1{contrast_error}) %\n".format(
+        "C=({contrast}\u00b1{contrast_error}) %".format(
             # "bkg={bkg}\u00b1{bkg_er}".format(
             p1=format(par[2], ".0f"),
             p2=format(par[1], ".0f"),
@@ -1495,8 +1496,8 @@ def fit_with_gaussian_fancy(
                 fontsize=24,
                 bbox=dict(
                     boxstyle="round,pad=0.5",
-                    edgecolor="black",
-                    facecolor="white",
+                    facecolor=mpl.rcParams["patch.facecolor"],
+                    edgecolor=mpl.rcParams.get("patch.edgecolor", "black"),
                 ),
             )
 

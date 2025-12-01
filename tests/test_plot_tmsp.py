@@ -48,10 +48,6 @@ class TestPlotScripts(unittest.TestCase):
             self.motherboard_number,
             self.firmware_version,
             self.timestamps,
-            scale="linear",
-            style="-o",
-            show_fig=True,
-            app_mask=True,
         )
         self.assertTrue(
             os.path.isfile(
