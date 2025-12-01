@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2025-12-01
+
+Faster functions, cleaner implementation.
+
+### Added
+
+- New function in calc_diff with a new algorithm for coincidence calculation that works on a moving window instead of merging two lists, sorting, and taking a difference between neighbors; the new one is much faster. The old one is commented out for now, plan to remove.
+
+- New function in delta_t that works with the new algorithm. The old one is commented out for now, plan to remove.
+
+- A new function to the archive/tools that normalizes HBT coincidence histogram to median of the whole histogram and separately to the average background and compares the two.
+
+### Changed
+
+- The unpacking function which does not apply calibration now at all and does not merge the pixel and timestamp data into a single matrix - faster, cleaner, easier to work with. Calibration is then applied where needed: cross_talk function, delta_t, etc. sensor_plot function do not require calibration so it's an added overhead when plotting sensor population plots.
+
+- Docstrings, some parameters' names for consistency and readability.
+
+- Tests that work with the new function.
+
 ## [1.3.1] - 2025-10-20
 
 Better plots, more control over fitting functions.

@@ -46,6 +46,7 @@ from scipy.optimize import curve_fit
 from tqdm import tqdm
 
 from daplis.functions import calc_diff as cd
+from daplis.functions import calibrate as cb
 from daplis.functions import sensor_plot
 from daplis.functions import unpack as f_up
 from daplis.functions import utils
@@ -60,6 +61,7 @@ def _collect_cross_talk(
     firmware_version: str,
     timestamps: int = 1000,
     delta_window: float = 50e3,
+    cycle_length: float = 4e9,
     include_offset: bool = False,
     apply_calibration: bool = True,
     absolute_timestamps: bool = False,
@@ -91,11 +93,13 @@ def _collect_cross_talk(
     timestamps : int, optional
         Number of timestamps per TDC per cycle used during data
         collection. The default is 1000.
-    include_offset : bool
+    include_offset : bool, optional
         Switch for including the offset calibration.
     delta_window : float, optional
         Window size for collecting timestamp differences. The default
         is 50e3.
+    cycle_length : float, optional
+        Length of the data acquisition cycle. The default is 4e9, or 4 ms.
     apply_calibration : bool, optional
         If True, apply calibration to the collected data. The default
         is True.
@@ -157,7 +161,7 @@ def _collect_cross_talk(
     # Define matrix of pixel coordinates, where rows are numbers of TDCs
     # and columns are the pixels that connected to these TDCs
     if firmware_version == "2212s":
-        pix_coor = np.arange(256).reshape(4, 64).T
+        pixel_coordinates = np.arange(256).reshape(4, 64).T
     elif firmware_version == "2212b":
         print(
             "\nFor firmware version '2212b' cross-talk numbers "
@@ -178,14 +182,12 @@ def _collect_cross_talk(
 
         # Unpack data for the requested pixels into dictionary
         if not absolute_timestamps:
-            data_all = f_up.unpack_binary_data(
+            data_pixels, data_timestamps = f_up.unpack_binary_data(
                 file,
                 daughterboard_number,
                 motherboard_number,
                 firmware_version,
                 timestamps,
-                include_offset,
-                apply_calibration,
             )
         else:
             data_all, _ = f_up.unpack_binary_data_with_absolute_timestamps(
@@ -198,12 +200,90 @@ def _collect_cross_talk(
                 apply_calibration,
             )
 
-        # Collect timestamp differences for the given pixels
-        # deltas_all = cd.calculate_differences_2212(
-        #     data_all, pixels_formatted, pix_coor, delta_window
-        # )
+        # If cycle_length is not given manually, estimate from the data
+        if cycle_length is None:
+            cycle_length = np.max(data_timestamps * 2500 / 140).astype(int)
+
+        # Offset timestamps by cycles (e.g. +4 ms to each next cycle)
+        number_of_cycles = len(data_timestamps.flatten()) / 64 / timestamps
+        offsets = np.repeat(
+            np.arange(number_of_cycles, dtype=np.int64) * int(cycle_length),
+            timestamps,
+        )
+
+        data_selected_pixels = {}
+
+        if apply_calibration is False:
+            for i in [x for sublist in pixels_formatted for x in sublist]:
+
+                tdc, pix = np.argwhere(pixel_coordinates == i)[0]
+                mask = (data_pixels[tdc] == pix) & (data_timestamps[tdc] >= 0)
+                ind = np.nonzero(mask)[0]
+                data_cut = data_timestamps[tdc][ind]
+                data_cut = data_cut * 2500 / 140
+                data_cut += offsets[mask]
+
+                data_selected_pixels[f"{i}"] = data_cut
+        else:
+            # Path to the calibration data
+            path_calibration_data = os.path.join(
+                os.path.dirname(os.path.realpath(__file__)),
+                "..",
+                "params",
+                "calibration_data",
+            )
+
+            # Include the offset calibration or not
+            try:
+                if include_offset:
+                    calibration_matrix, offset_array = (
+                        cb.load_calibration_data(
+                            path_calibration_data,
+                            daughterboard_number,
+                            motherboard_number,
+                            firmware_version,
+                            include_offset,
+                        )
+                    )
+                else:
+                    calibration_matrix = cb.load_calibration_data(
+                        path_calibration_data,
+                        daughterboard_number,
+                        motherboard_number,
+                        firmware_version,
+                        include_offset,
+                    )
+            except FileNotFoundError:
+                raise FileNotFoundError(
+                    "No .csv file with the calibration data was found. "
+                    "Check the path or run the calibration."
+                )
+
+            for i in [x for sublist in pixels_formatted for x in sublist]:
+                # Transform pixel number to TDC number and pixel coordinates in
+                # that TDC (from 0 to 3)
+                tdc, pix = np.argwhere(pixel_coordinates == i)[0]
+                mask = (data_pixels[tdc] == pix) & (data_timestamps[tdc] >= 0)
+                ind = np.nonzero(mask)[0]
+                data_cut = data_timestamps[tdc][ind]
+
+                if include_offset:
+                    data_cut = (
+                        (data_cut - data_cut % 140) * 2500 / 140
+                        + calibration_matrix[i, (data_cut % 140)]
+                        + offset_array[i]
+                    )
+                else:
+                    data_cut = (
+                        data_cut - data_cut % 140
+                    ) * 2500 / 140 + calibration_matrix[i, (data_cut % 140)]
+
+                data_cut += offsets[mask]
+
+                data_selected_pixels[f"{i}"] = data_cut
+
         deltas_all = cd.calculate_differences(
-            data_all, pixels_formatted, pix_coor, delta_window
+            data_selected_pixels, pixels_formatted, delta_window, cycle_length
         )
 
         # Save data as a .feather file in a cycle so data is not lost
@@ -395,8 +475,9 @@ def _plot_cross_talk_peaks(
                 / (aggressor_pix_tmsps + victim_pix_tmsps)
             )
 
-        plt.rcParams.update({"font.size": 27})
+        plt.rcParams.update({"font.size": 30})
         fig = plt.figure(figsize=(16, 10))
+        fig.subplots_adjust(top=0.94, right=0.93)
         plt.step(bin_centers, counts, color="rebeccapurple", label="Data")
         plt.plot(
             bin_centers,
@@ -484,7 +565,8 @@ def _plot_cross_talk_grid(
     ]
 
     fig, axes = plt.subplots(4, 5, figsize=(16, 10))
-    plt.rcParams.update({"font.size": 27})
+    plt.rcParams.update({"font.size": 30})
+    fig.subplots_adjust(top=0.94, right=0.93)
 
     for i, pix in enumerate(pixels[1:]):
         if pix_on_left:
@@ -658,7 +740,7 @@ def collect_dcr_by_file(
 
     output_file_name = files[0][:-4] + "-" + files[-1][:-4]
 
-    valid_per_pixel = np.zeros(256)
+    timestamps_per_pixel = np.zeros(256)
 
     dcr = []
 
@@ -666,34 +748,35 @@ def collect_dcr_by_file(
         # Define matrix of pixel coordinates, where rows are numbers of TDCs
         # and columns are the pixels that connected to these TDCs
         if firmware_version == "2212s":
-            pix_coor = np.arange(256).reshape(4, 64).T
+            pix_coordinates = np.arange(256).reshape(4, 64).T
         elif firmware_version == "2212b":
-            pix_coor = np.arange(256).reshape(64, 4)
+            pix_coordinates = np.arange(256).reshape(64, 4)
         else:
             print("\nFirmware version is not recognized.")
             sys.exit()
 
         # Unpack the data; offset calibration is not necessary
-        data = f_up.unpack_binary_data(
+        data_pixels, data_timestamps = f_up.unpack_binary_data(
             files[i],
             daughterboard_number,
             motherboard_number,
             firmware_version,
             timestamps,
-            include_offset=False,
         )
 
         # Collect number of timestamps in each pixel - DCR
         for i in range(256):
-            tdc, pix = np.argwhere(pix_coor == i)[0]
-            ind = np.where(data[tdc].T[0] == pix)[0]
-            ind1 = np.where(data[tdc].T[1][ind] > 0)[0]
-            valid_per_pixel[i] = len(data[tdc].T[1][ind[ind1]])
+            tdc, pix = np.argwhere(pix_coordinates == i)[0]
+            mask = (data_pixels[tdc] == pix) & (data_timestamps[tdc] >= 0)
+            ind = np.nonzero(mask)[0]
+            timestamps_per_pixel[i] = len(data_timestamps[tdc][ind])
 
-        acq_window_length = np.max(data[:].T[1]) * 1e-12
-        number_of_cycles = len(np.where(data[0].T[0] == -2)[0])
+        acq_window_length = (
+            np.max(data_timestamps * 2500 / 140).astype(int)
+        ) * 1e-12
+        number_of_cycles = len(data_timestamps.flatten()) / 64 / timestamps
 
-        dcr.append(valid_per_pixel / acq_window_length / number_of_cycles)
+        dcr.append(timestamps_per_pixel / acq_window_length / number_of_cycles)
 
     dcr = np.array(dcr)
 
@@ -791,8 +874,9 @@ def plot_dcr_histogram_and_stability(
     dcr_median = np.median(data)
 
     # Plot the DCR stability graph: median DCR vs file
-    plt.rcParams.update({"font.size": 27})
-    plt.figure(figsize=(16, 10))
+    plt.rcParams.update({"font.size": 30})
+    fig = plt.figure(figsize=(16, 10))
+    fig.subplots_adjust(top=0.94, right=0.93)
     plt.plot(
         [x + 1 for x in range(len(data))],
         np.median(data, axis=1),
@@ -972,7 +1056,8 @@ def _plot_cross_talk_vs_distance(
             differences.append(key_tuple[1] - key_tuple[0])
 
         fig = plt.figure(figsize=(16, 10))
-        plt.rcParams.update({"font.size": 27})
+        fig.subplots_adjust(top=0.94, right=0.93)
+        plt.rcParams.update({"font.size": 30})
         plt.errorbar(
             differences,
             list(CT.values()),
@@ -1070,7 +1155,8 @@ def _plot_average_cross_talk_vs_distance(
         final_result_averages[key].append((value, error))
 
     fig = plt.figure(figsize=(16, 10))
-    plt.rcParams.update({"font.size": 27})
+    fig.subplots_adjust(top=0.94, right=0.93)
+    plt.rcParams.update({"font.size": 30})
     plt.title("Average cross-talk probability")
     plt.xlabel("Distance in pixels (-)")
     plt.ylabel("Cross-talk probability (%)")
@@ -1194,7 +1280,7 @@ def zero_to_cross_talk_collect(
         motherboard_number,
         firmware_version,
         timestamps,
-        app_mask=False,
+        apply_hot_pixel_mask=False,
         save_to_file=True,
         absolute_timestamps=absolute_timestamps,
         correct_pix_address=correct_pix_address,
@@ -1375,7 +1461,8 @@ def zero_to_cross_talk_plot(
         on_both_average[np.abs(key)] = (ct_value_average, ct_error_average)
 
     fig = plt.figure(figsize=(16, 10))
-    plt.rcParams.update({"font.size": 27})
+    fig.subplots_adjust(top=0.94, right=0.93)
+    plt.rcParams.update({"font.size": 30})
     plt.title("Average cross-talk probability")
     plt.xlabel("Distance in pixels (-)")
     plt.ylabel("Cross-talk probability (%)")

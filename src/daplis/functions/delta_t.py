@@ -64,6 +64,7 @@ from pyarrow import feather as ft
 from tqdm import tqdm
 
 from daplis.functions import calc_diff as cd
+from daplis.functions import calibrate as cb
 from daplis.functions import unpack as f_up
 from daplis.functions import utils
 
@@ -157,6 +158,233 @@ def _combine_intermediate_feather_files(path: str, skip_data: bool = False):
         os.remove(ft_file)
 
 
+# def calculate_and_save_timestamp_differences(
+#     path: str,
+#     pixels: List[int] | List[List[int]],
+#     rewrite: bool,
+#     daughterboard_number: str,
+#     motherboard_number: str,
+#     firmware_version: str,
+#     timestamps: int = 512,
+#     delta_window: float = 50e3,
+#     cycle_length: float = None,
+#     apply_mask: bool = True,
+#     include_offset: bool = False,
+#     apply_calibration: bool = True,
+#     absolute_timestamps: bool = False,
+#     correct_pix_address: bool = False,
+# ):
+#     """Calculate and save timestamp differences into '.feather' file.
+
+#     Unpacks data into a dictionary, calculates timestamp differences for
+#     the requested pixels, and saves them into a '.feather' table. Works with
+#     firmware version 2212. Uses a faster algorithm.
+
+#     Parameters
+#     ----------
+#     path : str
+#         Path to the folder with '.dat' data files.
+#     pixels : List[int] | List[List[int]]
+#         List of pixel numbers for which the timestamp differences should
+#         be calculated and saved or list of two lists with pixel numbers
+#         for peak vs. peak calculations.
+#     rewrite : bool
+#         switch for rewriting the plot if it already exists. used as a
+#         safeguard to avoid unwanted overwriting of the previous results.
+#         Switch for rewriting the '.feather' file if it already exists.
+#     daughterboard_number : str
+#         LinoSPAD2 daughterboard number.
+#     motherboard_number : str
+#         LinoSPAD2 motherboard (FPGA) number, including the '#'.
+#     firmware_version: str
+#         LinoSPAD2 firmware version. Versions "2212s" (skip) and "2212b"
+#         (block) are recognized.
+#     timestamps : int, optional
+#         Number of timestamps per acquisition cycle per pixel. The default
+#         is 512.
+#     delta_window : float, optional
+#         Size of a window to which timestamp differences are compared.
+#         Differences in that window are saved. The default is 50e3 (50 ns).
+#     cycle_length: float, optional
+#         Length of the acquisition cycle. The default is None.
+#     apply_mask : bool, optional
+#         Switch for applying the mask for hot pixels. The default is True.
+#     include_offset : bool, optional
+#         Switch for applying offset calibration. The default is True.
+#     apply_calibration : bool, optional
+#         Switch for applying TDC and offset calibration. If set to 'True'
+#         while apply_offset_calibration is set to 'False', only the TDC
+#         calibration is applied. The default is True.
+#     absolute_timestamps: bool, optional
+#         Indicator for data with absolute timestamps. The default is
+#         False.
+#     correct_pix_address : bool, optional
+#         Correct pixel address for the sensor half on side 23 of the
+#         daughterboard. The default is False.
+
+#     Raises
+#     ------
+#     TypeError
+#         Raised if "pixels" is not a list.
+#     TypeError
+#         Raised if "firmware_version" is not a string.
+#     TypeError
+#         Raised if "rewrite" is not a boolean.
+#     TypeError
+#         Raised if "daughterboard_number" is not a string.
+#     """
+#     # Parameter type check
+#     if isinstance(pixels, list) is False:
+#         raise TypeError(
+#             "'pixels' should be a list of integers or a list of two lists"
+#         )
+#     if isinstance(firmware_version, str) is False:
+#         raise TypeError(
+#             "'firmware_version' should be string, '2212s', '2212b' or '2208'"
+#         )
+#     if isinstance(rewrite, bool) is False:
+#         raise TypeError("'rewrite' should be boolean")
+#     if isinstance(daughterboard_number, str) is False:
+#         raise TypeError("'daughterboard_number' should be string")
+
+#     os.chdir(path)
+
+#     # Handle the input list
+#     pixels = utils.pixel_list_transform(pixels)
+#     files_all = glob.glob("*.dat")
+
+#     files_all = sorted(files_all)
+
+#     out_file_name = files_all[0][:-4] + "-" + files_all[-1][:-4]
+
+#     # Feather file counter for saving delta ts into separate files
+#     # of up to 100 MB
+#     ft_file_number = 0
+
+#     # Check if the feather file exists and if it should be rewrited
+#     feather_file = os.path.join(
+#         path, "delta_ts_data", f"{out_file_name}.feather"
+#     )
+
+#     # Remove the old '.feather' files with the pattern
+#     # for ft_file in feather_files:
+#     utils.file_rewrite_handling(feather_file, rewrite)
+
+#     # Go back to the folder with '.dat' files
+#     os.chdir(path)
+
+#     # Collect the data for the required pixels
+#     print(
+#         "\n> > > Collecting data for delta t plot for the requested "
+#         "pixels and saving it to .feather in a cycle < < <\n"
+#     )
+#     # Define matrix of pixel coordinates, where rows are numbers of TDCs
+#     # and columns are the pixels that connected to these TDCs
+#     if firmware_version == "2212s":
+#         pixel_coordinates = np.arange(256).reshape(4, 64).T
+#     elif firmware_version == "2212b":
+#         pixel_coordinates = np.arange(256).reshape(64, 4)
+#     else:
+#         print("\nFirmware version is not recognized.")
+#         sys.exit()
+
+#     # Correct pixel addressing for motherboard on side '23'
+#     if correct_pix_address:
+#         pixels = utils.correct_pixels_address(pixels)
+
+#     # Mask the hot/warm pixels
+#     if apply_mask is True:
+#         mask = utils.apply_mask(daughterboard_number, motherboard_number)
+#         if isinstance(pixels[0], int) and isinstance(pixels[1], int):
+#             pixels = [pix for pix in pixels if pix not in mask]
+#         else:
+#             pixels[0] = [pix for pix in pixels[0] if pix not in mask]
+#             pixels[1] = [pix for pix in pixels[1] if pix not in mask]
+
+#     for i in tqdm(range(ceil(len(files_all))), desc="Collecting data"):
+#         file = files_all[i]
+
+#         # Unpack data for the requested pixels into dictionary
+#         if not absolute_timestamps:
+#             data_all = f_up.unpack_binary_data(
+#                 file,
+#                 daughterboard_number,
+#                 motherboard_number,
+#                 firmware_version,
+#                 timestamps,
+#                 include_offset,
+#                 apply_calibration,
+#             )
+#         else:
+#             data_all, _ = f_up.unpack_binary_data_with_absolute_timestamps(
+#                 file,
+#                 daughterboard_number,
+#                 motherboard_number,
+#                 firmware_version,
+#                 timestamps,
+#                 include_offset,
+#                 apply_calibration,
+#             )
+
+#         # If cycle_length is not given manually, estimate from the data
+#         if cycle_length is None:
+#             cycle_length = np.max(data_all)
+
+#         delta_ts = cd.calculate_differences(
+#             data_all, pixels, pixel_coordinates, delta_window, cycle_length
+#         )
+
+#         # Save data as a .feather file in a cycle so data is not lost
+#         # in the case of failure close to the end
+#         delta_ts = pd.DataFrame.from_dict(delta_ts, orient="index")
+#         delta_ts = delta_ts.T
+
+#         try:
+#             os.chdir("delta_ts_data")
+#         except FileNotFoundError:
+#             os.mkdir("delta_ts_data")
+#             os.chdir("delta_ts_data")
+
+#         # Check if feather file exists
+#         feather_file = f"{out_file_name}_{ft_file_number}.feather"
+#         if os.path.isfile(feather_file):
+#             # Check the size of the existing '.feather', if larger
+#             # than 100 MB, create new one
+#             if os.path.getsize(feather_file) / 1024 / 1024 < 100:
+#                 # Load existing feather file
+#                 existing_data = ft.read_feather(feather_file)
+
+#                 # Append new data to the existing feather file
+#                 combined_data = pd.concat([existing_data, delta_ts], axis=0)
+#                 ft.write_feather(combined_data, feather_file)
+#             else:
+#                 ft_file_number += 1
+#                 feather_file = f"{out_file_name}_{ft_file_number}.feather"
+#                 ft.write_feather(delta_ts, feather_file)
+
+#         else:
+#             # Save as a new feather file
+#             ft.write_feather(delta_ts, feather_file)
+#         os.chdir("..")
+
+#     # Combine the numbered feather files into a single one
+#     _combine_intermediate_feather_files(path)
+
+#     # Check, if the file was created
+#     if (
+#         os.path.isfile(path + f"/delta_ts_data/{out_file_name}.feather")
+#         is True
+#     ):
+#         print(
+#             "\n> > > Timestamp differences are saved as"
+#             f"{out_file_name}.feather in "
+#             f"{os.path.join(path, 'delta_ts_data')} < < <"
+#         )
+
+#     else:
+#         print("File wasn't generated. Check input parameters.")
+
+
 def calculate_and_save_timestamp_differences(
     path: str,
     pixels: List[int] | List[List[int]],
@@ -167,71 +395,70 @@ def calculate_and_save_timestamp_differences(
     timestamps: int = 512,
     delta_window: float = 50e3,
     cycle_length: float = None,
-    app_mask: bool = True,
+    apply_mask: bool = True,
     include_offset: bool = False,
     apply_calibration: bool = True,
     absolute_timestamps: bool = False,
     correct_pix_address: bool = False,
 ):
-    """Calculate and save timestamp differences into '.feather' file.
+    """Calculate and save timestamp differences into a '.feather' file.
 
-    Unpacks data into a dictionary, calculates timestamp differences for
-    the requested pixels, and saves them into a '.feather' table. Works with
-    firmware version 2212. Uses a faster algorithm.
+    Unpacks data, computes timestamp differences for the requested pixels,
+    and saves them into a '.feather' table. Compatible with firmware
+    versions 2212 and uses a faster algorithm.
 
     Parameters
     ----------
     path : str
-        Path to the folder with '.dat' data files.
+        Path to the folder containing '.dat' data files.
     pixels : List[int] | List[List[int]]
-        List of pixel numbers for which the timestamp differences should
-        be calculated and saved or list of two lists with pixel numbers
-        for peak vs. peak calculations.
+        List of pixel numbers for which timestamp differences should
+        be computed, or a list of two lists for peak-vs-peak calculations.
     rewrite : bool
-        switch for rewriting the plot if it already exists. used as a
-        safeguard to avoid unwanted overwriting of the previous results.
         Switch for rewriting the '.feather' file if it already exists.
+        Used as a safeguard to avoid unwanted overwriting.
     daughterboard_number : str
         LinoSPAD2 daughterboard number.
     motherboard_number : str
         LinoSPAD2 motherboard (FPGA) number, including the '#'.
-    firmware_version: str
-        LinoSPAD2 firmware version. Versions "2212s" (skip) and "2212b"
+    firmware_version : str
+        LinoSPAD2 firmware version. Versions '2212s' (skip) and '2212b'
         (block) are recognized.
     timestamps : int, optional
-        Number of timestamps per acquisition cycle per pixel. The default
-        is 512.
+        Number of timestamps per acquisition cycle per pixel.
+        The default is 512.
     delta_window : float, optional
-        Size of a window to which timestamp differences are compared.
-        Differences in that window are saved. The default is 50e3 (50 ns).
-    cycle_length: float, optional
-        Length of the acquisition cycle. The default is None.
-    app_mask : bool, optional
-        Switch for applying the mask for hot pixels. The default is True.
+        Width of the window in which timestamp differences are counted.
+        The default is 50e3 (50 ns).
+    cycle_length : float, optional
+        Length of one acquisition cycle. The default is None.
+    apply_mask : bool, optional
+        Apply mask for hot pixels. The default is True.
     include_offset : bool, optional
-        Switch for applying offset calibration. The default is True.
+        Apply offset calibration. The default is False.
     apply_calibration : bool, optional
-        Switch for applying TDC and offset calibration. If set to 'True'
-        while apply_offset_calibration is set to 'False', only the TDC
-        calibration is applied. The default is True.
-    absolute_timestamps: bool, optional
-        Indicator for data with absolute timestamps. The default is
-        False.
+        Apply TDC and offset calibration. If True while
+        ``include_offset`` is False, only TDC calibration is applied.
+        The default is True.
+    absolute_timestamps : bool, optional
+        Indicates whether the data contains absolute timestamps.
+        The default is False.
     correct_pix_address : bool, optional
-        Correct pixel address for the sensor half on side 23 of the
+        Correct pixel addresses for the sensor half on side 23 of the
         daughterboard. The default is False.
 
     Raises
     ------
     TypeError
-        Raised if "pixels" is not a list.
+        If ``pixels`` is not a list.
     TypeError
-        Raised if "firmware_version" is not a string.
+        If ``firmware_version`` is not a string.
     TypeError
-        Raised if "rewrite" is not a boolean.
+        If ``rewrite`` is not a boolean.
     TypeError
-        Raised if "daughterboard_number" is not a string.
+        If ``daughterboard_number`` is not a string.
     """
+
     # Parameter type check
     if isinstance(pixels, list) is False:
         raise TypeError(
@@ -279,10 +506,11 @@ def calculate_and_save_timestamp_differences(
     )
     # Define matrix of pixel coordinates, where rows are numbers of TDCs
     # and columns are the pixels that connected to these TDCs
+
     if firmware_version == "2212s":
-        pix_coor = np.arange(256).reshape(4, 64).T
+        pixel_coordinates = np.arange(256).reshape(4, 64).T
     elif firmware_version == "2212b":
-        pix_coor = np.arange(256).reshape(64, 4)
+        pixel_coordinates = np.arange(256).reshape(64, 4)
     else:
         print("\nFirmware version is not recognized.")
         sys.exit()
@@ -292,7 +520,7 @@ def calculate_and_save_timestamp_differences(
         pixels = utils.correct_pixels_address(pixels)
 
     # Mask the hot/warm pixels
-    if app_mask is True:
+    if apply_mask is True:
         mask = utils.apply_mask(daughterboard_number, motherboard_number)
         if isinstance(pixels[0], int) and isinstance(pixels[1], int):
             pixels = [pix for pix in pixels if pix not in mask]
@@ -305,32 +533,111 @@ def calculate_and_save_timestamp_differences(
 
         # Unpack data for the requested pixels into dictionary
         if not absolute_timestamps:
-            data_all = f_up.unpack_binary_data(
+            data_pixels, data_timestamps = f_up.unpack_binary_data(
                 file,
                 daughterboard_number,
                 motherboard_number,
                 firmware_version,
                 timestamps,
-                include_offset,
-                apply_calibration,
             )
         else:
-            data_all, _ = f_up.unpack_binary_data_with_absolute_timestamps(
-                file,
-                daughterboard_number,
-                motherboard_number,
-                firmware_version,
-                timestamps,
-                include_offset,
-                apply_calibration,
+            data_pixels, data_timestamps, _ = (
+                f_up.unpack_binary_data_with_absolute_timestamps(
+                    file,
+                    daughterboard_number,
+                    motherboard_number,
+                    firmware_version,
+                    timestamps,
+                    include_offset,
+                    apply_calibration,
+                )
             )
 
         # If cycle_length is not given manually, estimate from the data
         if cycle_length is None:
-            cycle_length = np.max(data_all)
+            cycle_length = np.max(data_timestamps * 2500 / 140).astype(int)
+
+        # Offset timestamps by cycles (e.g. +4 ms to each next cycle)
+        number_of_cycles = len(data_timestamps.flatten()) / 64 / timestamps
+        offsets = np.repeat(
+            np.arange(number_of_cycles, dtype=np.int64) * int(cycle_length),
+            timestamps,
+        )
+
+        data_selected_pixels = {}
+
+        if apply_calibration is False:
+
+            for i in [x for sublist in pixels for x in sublist]:
+
+                tdc, pix = np.argwhere(pixel_coordinates == i)[0]
+                mask = (data_pixels[tdc] == pix) & (data_timestamps[tdc] >= 0)
+                ind = np.nonzero(mask)[0]
+                data_cut = data_timestamps[tdc][ind]
+                data_cut = data_cut * 2500 / 140
+                data_cut += offsets[mask]
+
+                data_selected_pixels[f"{i}"] = data_cut
+        else:
+            # Path to the calibration data
+            path_calibration_data = os.path.join(
+                os.path.dirname(os.path.realpath(__file__)),
+                "..",
+                "params",
+                "calibration_data",
+            )
+
+            # Include the offset calibration or not
+            try:
+                if include_offset:
+                    calibration_matrix, offset_array = (
+                        cb.load_calibration_data(
+                            path_calibration_data,
+                            daughterboard_number,
+                            motherboard_number,
+                            firmware_version,
+                            include_offset,
+                        )
+                    )
+                else:
+                    calibration_matrix = cb.load_calibration_data(
+                        path_calibration_data,
+                        daughterboard_number,
+                        motherboard_number,
+                        firmware_version,
+                        include_offset,
+                    )
+            except FileNotFoundError:
+                raise FileNotFoundError(
+                    "No .csv file with the calibration data was found. "
+                    "Check the path or run the calibration."
+                )
+
+            for i in [x for sublist in pixels for x in sublist]:
+                # Transform pixel number to TDC number and pixel coordinates in
+                # that TDC (from 0 to 3)
+                tdc, pix = np.argwhere(pixel_coordinates == i)[0]
+                mask = (data_pixels[tdc] == pix) & (data_timestamps[tdc] >= 0)
+                ind = np.nonzero(mask)[0]
+                data_cut = data_timestamps[tdc][ind]
+
+                if include_offset:
+                    data_cut = (
+                        (data_cut - data_cut % 140) * 2500 / 140
+                        + calibration_matrix[i, (data_cut % 140)]
+                        + offset_array[i]
+                    )
+                else:
+                    data_cut = (
+                        data_cut - data_cut % 140
+                    ) * 2500 / 140 + calibration_matrix[i, (data_cut % 140)]
+
+                data_cut += offsets[mask]
+
+                data_selected_pixels[f"{i}"] = data_cut
 
         delta_ts = cd.calculate_differences(
-            data_all, pixels, pix_coor, delta_window, cycle_length
+            data_selected_pixels, pixels, delta_window, cycle_length
         )
 
         # Save data as a .feather file in a cycle so data is not lost
@@ -384,6 +691,7 @@ def calculate_and_save_timestamp_differences(
         print("File wasn't generated. Check input parameters.")
 
 
+# TODO update with new algorithm
 def calculate_and_save_timestamp_differences_1v1(
     path: str,
     pixels: List[int] | List[List[int]],
@@ -394,7 +702,7 @@ def calculate_and_save_timestamp_differences_1v1(
     timestamps: int = 512,
     delta_window: float = 50e3,
     cycle_length: float = None,
-    app_mask: bool = True,
+    apply_mask: bool = True,
     include_offset: bool = False,
     apply_calibration: bool = True,
     absolute_timestamps: bool = False,
@@ -434,7 +742,7 @@ def calculate_and_save_timestamp_differences_1v1(
         Differences in that window are saved. The default is 50e3 (50 ns).
     cycle_length: float, optional
         Length of the acquisition cycle. The default is None.
-    app_mask : bool, optional
+    apply_mask : bool, optional
         Switch for applying the mask for hot pixels. The default is True.
     include_offset : bool, optional
         Switch for applying offset calibration. The default is True.
@@ -508,9 +816,9 @@ def calculate_and_save_timestamp_differences_1v1(
     # Define matrix of pixel coordinates, where rows are numbers of TDCs
     # and columns are the pixels that connected to these TDCs
     if firmware_version == "2212s":
-        pix_coor = np.arange(256).reshape(4, 64).T
+        pixel_coordinates = np.arange(256).reshape(4, 64).T
     elif firmware_version == "2212b":
-        pix_coor = np.arange(256).reshape(64, 4)
+        pixel_coordinates = np.arange(256).reshape(64, 4)
     else:
         print("\nFirmware version is not recognized.")
         sys.exit()
@@ -520,7 +828,7 @@ def calculate_and_save_timestamp_differences_1v1(
         pixels = utils.correct_pixels_address(pixels)
 
         # # Mask the hot/warm pixels
-        # if app_mask is True:
+        # if apply_mask is True:
         #     mask = utils.apply_mask(daughterboard_number, motherboard_number)
         #     if isinstance(pixels[0], int) and isinstance(pixels[1], int):
         #         pixels = [pix for pix in pixels if pix not in mask]
@@ -539,8 +847,6 @@ def calculate_and_save_timestamp_differences_1v1(
                 motherboard_number,
                 firmware_version,
                 timestamps,
-                include_offset,
-                apply_calibration,
             )
         else:
             data_all, _ = f_up.unpack_binary_data_with_absolute_timestamps(
@@ -558,7 +864,7 @@ def calculate_and_save_timestamp_differences_1v1(
             cycle_length = np.max(data_all)
 
         delta_ts = cd.calculate_differences_1v1(
-            data_all, pixels, pix_coor, delta_window, cycle_length
+            data_all, pixels, pixel_coordinates, delta_window, cycle_length
         )
 
         # Save data as a .feather file in a cycle so data is not lost
@@ -623,7 +929,7 @@ def calculate_and_save_timestamp_differences_full_sensor(
     firmware_version: str,
     timestamps: int = 512,
     delta_window: float = 50e3,
-    app_mask: bool = True,
+    apply_mask: bool = True,
     include_offset: bool = False,
     apply_calibration: bool = True,
     absolute_timestamps: bool = False,
@@ -662,7 +968,7 @@ def calculate_and_save_timestamp_differences_full_sensor(
     delta_window : float, optional
         Size of a window to which timestamp differences are compared.
         Differences in that window are saved. The default is 50e3 (50 ns).
-    app_mask : bool, optional
+    apply_mask : bool, optional
         Switch for applying the mask for hot pixels. The default is True.
     include_offset : bool, optional
         Switch for applying offset calibration. The default is True.
@@ -733,9 +1039,9 @@ def calculate_and_save_timestamp_differences_full_sensor(
     # Define matrix of pixel coordinates, where rows are numbers of TDCs
     # and columns are the pixels that connected to these TDCs
     if firmware_version == "2212s":
-        pix_coor = np.arange(256).reshape(4, 64).T
+        pixel_coordinates = np.arange(256).reshape(4, 64).T
     elif firmware_version == "2212b":
-        pix_coor = np.arange(256).reshape(64, 4)
+        pixel_coordinates = np.arange(256).reshape(64, 4)
     else:
         print("\nFirmware version is not recognized.")
         sys.exit()
@@ -753,7 +1059,7 @@ def calculate_and_save_timestamp_differences_full_sensor(
     utils.file_rewrite_handling(feather_file, rewrite)
 
     # TODO add check for masked/noisy pixels
-    # if app_mask is True:
+    # if apply_mask is True:
     #     path_to_back = os.getcwd()
     #     path_to_mask = os.path.realpath(__file__) + "/../.." + "/params/masks"
     #     os.chdir(path_to_mask)
@@ -875,9 +1181,9 @@ def calculate_and_save_timestamp_differences_full_sensor(
 
         # Get the data from the requested pixel only
         deltas_all[f"{pix_left_peak},{pix_right_peak}"] = []
-        tdc1, pix_c1 = np.argwhere(pix_coor == pix_left_peak)[0]
+        tdc1, pix_c1 = np.argwhere(pixel_coordinates == pix_left_peak)[0]
         pix1 = np.where(data_all1[tdc1].T[0] == pix_c1)[0]
-        tdc2, pix_c2 = np.argwhere(pix_coor == pix_right_peak)[0]
+        tdc2, pix_c2 = np.argwhere(pixel_coordinates == pix_right_peak)[0]
         pix2 = np.where(data_all2[tdc2].T[0] == pix_c2)[0]
 
         # Data from one of the board should be shifted as data collection
@@ -985,7 +1291,7 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
     timestamps: int = 512,
     delta_window: float = 50e3,
     threshold: int = 0,
-    app_mask: bool = True,
+    apply_mask: bool = True,
     include_offset: bool = False,
     apply_calibration: bool = True,
     absolute_timestamps: bool = False,
@@ -1033,7 +1339,7 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
         this will find the first cycle where there is any positive signal
         in the pixel, while a value of 15 will find first cycle when
         signal is above approx. 4 kHz strong. The default is 0.
-    app_mask : bool, optional
+    apply_mask : bool, optional
         Switch for applying the mask for hot pixels. The default is True.
     include_offset : bool, optional
         Switch for applying offset calibration. The default is True.
@@ -1102,9 +1408,9 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
     # Define matrix of pixel coordinates, where rows are numbers of TDCs
     # and columns are the pixels that connected to these TDCs
     if firmware_version == "2212s":
-        pix_coor = np.arange(256).reshape(4, 64).T
+        pixel_coordinates = np.arange(256).reshape(4, 64).T
     elif firmware_version == "2212b":
-        pix_coor = np.arange(256).reshape(64, 4)
+        pixel_coordinates = np.arange(256).reshape(64, 4)
     else:
         print("\nFirmware version is not recognized.")
         sys.exit()
@@ -1118,7 +1424,7 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
     utils.file_rewrite_handling(feather_file, rewrite)
 
     # TODO add check for masked/noisy pixels
-    # if app_mask is True:
+    # if apply_mask is True:
     #     path_to_back = os.getcwd()
     #     path_to_mask = os.path.realpath(__file__) + "/../.." + "/params/masks"
     #     os.chdir(path_to_mask)
@@ -1206,9 +1512,9 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
 
         # Get the data from the requested pixel only
         deltas_all[f"{pix_left_peak},{pix_right_peak}"] = []
-        tdc1, pix_c1 = np.argwhere(pix_coor == pix_left_peak)[0]
+        tdc1, pix_c1 = np.argwhere(pixel_coordinates == pix_left_peak)[0]
         pix1 = np.where(data_all1[tdc1].T[0] == pix_c1)[0]
-        tdc2, pix_c2 = np.argwhere(pix_coor == pix_right_peak)[0]
+        tdc2, pix_c2 = np.argwhere(pixel_coordinates == pix_right_peak)[0]
         pix2 = np.where(data_all2[tdc2].T[0] == pix_c2)[0]
 
         cycle_ends1 = np.where(data_all1[0].T[1] == -2)[0]

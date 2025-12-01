@@ -45,28 +45,29 @@ from daplis.functions import utils
 
 
 def collect_data_and_apply_mask(
-    files: List[str],
+    files: List[str] | str,
     daughterboard_number: str,
     motherboard_number: str,
     firmware_version: str,
     timestamps: int,
-    app_mask: bool = True,
+    apply_hot_pixel_mask: bool = True,
     absolute_timestamps: bool = False,
     save_to_file: bool = False,
     correct_pix_address: bool = False,
     calculate_rates: bool = False,
-    acq_window_length: float = None,
-    number_of_cycles: float = None,
-) -> np.ndarray:
-    """Collect data from files and apply mask to the valid pixel count.
+    acq_window_length: float | None = None,
+    number_of_cycles: float | None = None,
+) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
+    """Collect data from files and return number of timestamps in pixels.
 
-    Unpacks data and returns the number of timestamps in each pixel.
-    This function introduces modularity to the whole module and is
-    called multiple times here.
+    Unpacks data and returns the number of timestamps (and photon rate)
+    in each pixel. Optionally, aplly mask or hot pixels, save the data
+    into a file.
+
 
     Parameters
     ----------
-    files : List[str]
+    files : List[str], str
         List of data file paths.
     daughterboard_number : str
         The LinoSPAD2 daughterboard number.
@@ -76,33 +77,37 @@ def collect_data_and_apply_mask(
         LinoSPAD2 firmware version.
     timestamps : int
         Number of timestamps per pixel per acquisition cycle.
-    app_mask : bool, optional
+    apply_hot_pixel_mask : bool, optional
         Switch for applying the mask on warm/hot pixels. Default is True.
     absolute_timestamps : bool, optional
         Indicator for data files with absolute timestamps. Default is
         False.
     correct_pix_address : bool, optional
-        Check for correcting the pixel addresing. THe default is False.
+        Check for correcting the pixel addressing. The default is False.
     calculate_rates : bool, optional
         Switch for calculating the photon rate for each pixel. The
-        default is 'False'.
+        default is False.
     acq_window_length : float, optional
         Length of each acquisition cycle; maximum is 4 ms. If None,
         estimated from the data. The default is None.
     number_of_cycles : float, optional
         Number of acquisition cycles per data file. If None,
         estimated from the data. The default is None.
+
     Returns
     -------
-    np.ndarray
-        Array with the number of timestamps per pixel.
+    timestamps_per_pixel : ndarray of shape (256,)
+        Number of valid timestamps accumulated in each pixel.
+    rates : ndarray of shape (256,), optional
+        Returned only when 'calculate_rates=True'. Photon detection rates
+        per pixel, in events per second.
     """
     # Define matrix of pixel coordinates, where rows are numbers of TDCs
     # and columns are the pixels that connected to these TDCs
     if firmware_version == "2212s":
-        pix_coor = np.arange(256).reshape(4, 64).T
+        pixel_coordinates = np.arange(256).reshape(4, 64).T
     elif firmware_version == "2212b":
-        pix_coor = np.arange(256).reshape(64, 4)
+        pixel_coordinates = np.arange(256).reshape(64, 4)
     else:
         print("\nFirmware version is not recognized.")
         sys.exit()
@@ -115,30 +120,34 @@ def collect_data_and_apply_mask(
 
     for i in tqdm(range(len(files)), desc="Collecting data"):
         if not absolute_timestamps:
-            data = f_up.unpack_binary_data(
+            data_pixels, data_timestamps = f_up.unpack_binary_data(
                 files[i],
                 daughterboard_number,
                 motherboard_number,
                 firmware_version,
                 timestamps,
-                include_offset=False,
-                apply_calibration=False,
             )
         else:
-            data, _ = f_up.unpack_binary_data_with_absolute_timestamps(
-                files[i],
-                daughterboard_number,
-                motherboard_number,
-                firmware_version,
-                timestamps,
-                include_offset=False,
-                apply_calibration=False,
+            data_pixels, data_timestamps, _ = (
+                f_up.unpack_binary_data_with_absolute_timestamps(
+                    files[i],
+                    daughterboard_number,
+                    motherboard_number,
+                    firmware_version,
+                    timestamps,
+                    include_offset=False,
+                    apply_calibration=False,
+                )
             )
         for i in range(256):
-            tdc, pix = np.argwhere(pix_coor == i)[0]
-            ind = np.where(data[tdc].T[0] == pix)[0]
-            ind1 = np.where(data[tdc].T[1][ind] > 0)[0]
-            timestamps_per_pixel[i] += len(data[tdc].T[1][ind[ind1]])
+            # tdc, pix = np.argwhere(pix_coor == i)[0]
+            # ind = np.where(data[tdc].T[0] == pix)[0]
+            # ind1 = np.where(data[tdc].T[1][ind] > 0)[0]
+            # timestamps_per_pixel[i] += len(data[tdc].T[1][ind[ind1]])
+            tdc, pix = np.argwhere(pixel_coordinates == i)[0]
+            mask = (data_pixels[tdc] == pix) & (data_timestamps[tdc] >= 0)
+            ind = np.nonzero(mask)[0]
+            timestamps_per_pixel[i] += len(data_timestamps[tdc][ind])
 
     if correct_pix_address:
         fix = np.zeros(len(timestamps_per_pixel))
@@ -148,19 +157,27 @@ def collect_data_and_apply_mask(
         del fix
 
     # Apply mask if requested
-    if app_mask:
+    if apply_hot_pixel_mask:
         mask = utils.apply_mask(daughterboard_number, motherboard_number)
         timestamps_per_pixel[mask] = 0
 
+    # if calculate_rates:
+    #     if acq_window_length is None:
+    #         acq_window_length = np.max(data[:].T[1]) * 1e-12
+    #     if number_of_cycles is None:
+    #         number_of_cycles = len(np.where(data[0].T[0] == -2)[0])
     if calculate_rates:
         if acq_window_length is None:
-            acq_window_length = np.max(data[:].T[1]) * 1e-12
+            acq_window_length = np.max(data_timestamps * 2500 / 140).astype(
+                int
+            )
         if number_of_cycles is None:
-            number_of_cycles = len(np.where(data[0].T[0] == -2)[0])
+            number_of_cycles = len(data_timestamps.flatten()) / 64 / timestamps
 
         rates = (
             timestamps_per_pixel
             / acq_window_length
+            * 1e12  # transform to seconds
             / number_of_cycles
             / len(files)
         )
@@ -254,14 +271,12 @@ def plot_single_pix_hist(
     for i, num in enumerate(data_files):
         print(f"> > > Plotting pixel histograms, Working on {num} < < <\n")
 
-        data = f_up.unpack_binary_data(
+        data_pixels, data_timestamps = f_up.unpack_binary_data(
             num,
             daughterboard_number,
             motherboard_number,
             firmware_version,
             timestamps,
-            include_offset=False,
-            apply_calibration=False,
         )
 
         bins = np.arange(
@@ -285,9 +300,9 @@ def plot_single_pix_hist(
                 print("\nFirmware version is not recognized.")
                 sys.exit()
             tdc, pix = np.argwhere(pix_coor == pixels[i])[0]
-            ind = np.where(data[tdc].T[0] == pix)[0]
-            ind1 = np.where(data[tdc].T[1][ind] > 0)[0]
-            data_to_plot = data[tdc].T[1][ind[ind1]]
+            mask = (data_pixels[tdc] == pix) & (data_timestamps[tdc] >= 0)
+            ind = np.nonzero(mask)[0]
+            data_to_plot = data_timestamps[tdc][ind]
 
             n, b, p = plt.hist(data_to_plot, bins=bins, color=color)
             if fit_average is True:
@@ -327,24 +342,23 @@ def plot_sensor_population(
     motherboard_number: str,
     firmware_version: str,
     timestamps: int = 512,
-    scale: str = "linear",
-    style: str = "-o",
-    app_mask: bool = True,
-    color: str = "rebeccapurple",
-    correct_pix_address: bool = False,
-    fit_peaks: bool = False,
-    threshold_multiplier: int = 10,
-    pickle_fig: bool = False,
-    absolute_timestamps: bool = False,
+    y_scale: str = "linear",
+    apply_hot_pixel_mask: bool = True,
+    look_for_peaks: bool = True,
+    peak_threshold: int = 10,
     single_file: bool = False,
+    plot_rates: bool = True,
+    pickle_fig: bool = False,
+    correct_pix_address: bool = False,
+    absolute_timestamps: bool = False,
 ) -> None:
     """Plot number of timestamps in each pixel for all datafiles.
 
     Plot sensor population as number of timestamps vs. pixel number.
-    Analyzes all data files in the given folder. The output figure is saved
-    in the "results" folder, which is created if it does not exist, in
-    the same folder where datafiles are. Works with the firmware version
-    '2212'.
+    Analyzes all data files in the given folder. The output figure is
+    saved in the "results" folder, which is created if it does not
+    exist, in the same folder where datafiles are. Works with the
+    firmware version '2212'.
 
     Parameters
     ----------
@@ -361,35 +375,34 @@ def plot_sensor_population(
     timestamps : int, optional
         Number of timestamps per pixel per acquisition cycle. Default is
         "512".
-    scale : str, optional
+    y_scale : str, optional
         Scale for the y-axis of the plot. Use "log" for logarithmic.
         The default is "linear".
     style : str, optional
         Style of the plot. The default is "-o".
-    app_mask : bool, optional
+    apply_hot_pixel_mask : bool, optional
         Switch for applying the mask on warm/hot pixels. The default is
         True.
-    color : str, optional
-        Color for the plot. The default is 'rebeccapurple'.
+    look_for_peaks : bool, optional
+        Switch for finding the highest peaks. The default is False.
+    peak_threshold : int, optional
+        Threshold multiplier that is applied to median across the whole
+        sensor for finding peaks. The default is 10.
+    single_file : bool, optional
+        Switch for using only the first file in the folder. Can be
+        utilized for a quick plot. The default is False.
+    plot_rates : bool, optional
+        Switch for using the rates for the plot. The default is True.
+    pickle_fig : bool, optional
+        Switch for pickling the figure. Can be used when plotting takes
+        a lot of time. The default is False.
     correct_pix_address : bool, optional
         Switch for correcting pixel addressing for the faulty firmware
         version for the 23 side of the daughterboard. The default is
         False.
-    fit_peaks : bool, optional
-        Switch for finding the highest peaks and fitting them with a
-        Gaussian to provide their position. The default is False.
-    threshold_multiplier : int, optional
-        Threshold multiplier that is applied to median across the whole
-        sensor for finding peaks. The default is 10.
-    pickle_fig : bool, optional
-        Switch for pickling the figure. Can be used when plotting takes
-        a lot of time. The default is False.
     absolute_timestamps : bool, optional
         Indicator for data files with absolute timestamps. Default is
         False.
-    single_file : optional
-        Switch for using only the first file in the folder. Can be
-        utilized for a quick plot. The default is False.
 
     Returns
     -------
@@ -403,8 +416,6 @@ def plot_sensor_population(
     focused and get the peak position for further use in, e.g., delta_t
     functions. Here, the data were collected using the '23'-side
     sensor half which required correction of the pixel addressing.
-    Offset calibration for the sensor is not available therefore
-    it should be skipped.
 
     First, get the absolute path to where the '.dat' files are.
     >>> path = r'C:/Path/To/Data'
@@ -417,7 +428,7 @@ def plot_sensor_population(
     >>> firmware_version="2212s",
     >>> timestamps = 1000,
     >>> correct_pix_address = True,
-    >>> fit_peaks = True,
+    >>> look_for_peaks = True,
     >>> single_file = True,
     >>> )
     """
@@ -454,14 +465,14 @@ def plot_sensor_population(
 
     # If fitting the peaks, calculate the photon rates in each peak as
     # well
-    if fit_peaks:
+    if look_for_peaks or plot_rates:
         timestamps_per_pixel, rates = collect_data_and_apply_mask(
             files,
             daughterboard_number,
             motherboard_number,
             firmware_version,
             timestamps,
-            app_mask,
+            apply_hot_pixel_mask,
             absolute_timestamps,
             save_to_file=False,
             correct_pix_address=correct_pix_address,
@@ -474,47 +485,66 @@ def plot_sensor_population(
             motherboard_number,
             firmware_version,
             timestamps,
-            app_mask,
+            apply_hot_pixel_mask,
             absolute_timestamps,
             save_to_file=False,
             correct_pix_address=correct_pix_address,
         )
+
+    print("Rates", rates)
 
     # Plotting
     print("\n> > > Plotting < < <\n")
     plt.rcParams.update({"font.size": 30})
     fig = plt.figure(figsize=(16, 10))
     fig.subplots_adjust(top=0.94, right=0.93)
-    if scale == "log":
-        plt.yscale("log")
-    plt.plot(timestamps_per_pixel, style, color=color)
-    plt.xlabel("Pixel number (-)")
-    plt.ylabel("Photons (-)")
+    if y_scale == "log":
+        plt.yy_scale("log")
 
-    # Find and fit peaks if fit_peaks is True
-    if fit_peaks:
-        threshold = np.median(timestamps_per_pixel) * threshold_multiplier
-        fit_width = 20
+    if not plot_rates:
+        plt.plot(timestamps_per_pixel, "o-", color="rebeccapurple")
+        plt.xlabel("Pixel number (-)")
+        plt.ylabel("Photons (-)")
+
+    # Plotting
+    else:
+        if np.max(rates) > 1e3:
+            plt.plot(rates / 1e3, "o-", color="rebeccapurple")
+            plt.ylabel("Photon rate (kHz)")
+        elif np.max(rates) > 1e6:
+            plt.plot(rates / 1e6, "o-", color="rebeccapurple")
+            plt.ylabel("Photon rate (MHz)")
+        else:
+            plt.plot(rates, "o-", color="rebeccapurple")
+            plt.ylabel("Photon rate (Hz)")
+        plt.xlabel("Pixel number (-)")
+
+    # Find and fit peaks if look_for_peaks is True
+    if look_for_peaks:
+        threshold = np.median(timestamps_per_pixel) * peak_threshold
+        peak_search_width = 5
         peaks, _ = find_peaks(timestamps_per_pixel, height=threshold)
         peaks = np.unique(peaks)
 
-        print("Fitting the peaks with gaussian")
         for peak_index in peaks:
-            x_fit = np.arange(
-                peak_index - fit_width, peak_index + fit_width + 1
+            x_peak = np.arange(
+                peak_index - peak_search_width,
+                peak_index + peak_search_width + 1,
             )
-            cut_above_256 = np.where(x_fit >= 256)[0]
-            x_fit = np.delete(x_fit, cut_above_256)
-            y_fit = timestamps_per_pixel[x_fit]
-            try:
-                params, _ = utils.fit_gaussian(x_fit, y_fit)
-            except Exception as _:
-                continue
+            cut_above_256 = np.where(x_peak >= 256)[0]
+            x_peak = np.delete(x_peak, cut_above_256)
+            y_peak = timestamps_per_pixel[x_peak]
+            # try:
+            #     params, _ = utils.fit_gaussian(x_peak, y_peak)
+            # except Exception as _:
+            #     continue
 
             plt.plot(
-                x_fit,
-                utils.gaussian(x_fit, *params),
-                "--",
+                0,
+                0,
+                "o--",
+                # markersize=8,
+                color="rebeccapurple",
                 label=f"Peak at {peak_index}, "
                 f"Rate: {rates[peak_index]/1000:.0f} kHz",
             )
@@ -548,188 +578,188 @@ def plot_sensor_population(
     os.chdir("../..")
 
 
-def plot_sensor_population_rates(
-    path: str,
-    daughterboard_number: str,
-    motherboard_number: str,
-    firmware_version: str,
-    timestamps: int = 512,
-    scale: str = "linear",
-    style: str = "-o",
-    app_mask: bool = True,
-    color: str = "rebeccapurple",
-    correct_pix_address: bool = False,
-    pickle_fig: bool = False,
-    absolute_timestamps: bool = False,
-    single_file: bool = False,
-) -> None:
-    """Plot number of timestamps in each pixel for all datafiles.
+# def plot_sensor_population_rates(
+#     path: str,
+#     daughterboard_number: str,
+#     motherboard_number: str,
+#     firmware_version: str,
+#     timestamps: int = 512,
+#     y_scale: str = "linear",
+#     style: str = "-o",
+#     apply_hot_pixel_mask: bool = True,
+#     color: str = "rebeccapurple",
+#     correct_pix_address: bool = False,
+#     pickle_fig: bool = False,
+#     absolute_timestamps: bool = False,
+#     single_file: bool = False,
+# ) -> None:
+#     """Plot number of timestamps in each pixel for all datafiles.
 
-    Plot sensor population as number of timestamps vs. pixel number.
-    Analyzes all data files in the given folder. The output figure is saved
-    in the "results" folder, which is created if it does not exist, in
-    the same folder where datafiles are. Works with the firmware version
-    '2212'.
+#     Plot sensor population as number of timestamps vs. pixel number.
+#     Analyzes all data files in the given folder. The output figure is saved
+#     in the "results" folder, which is created if it does not exist, in
+#     the same folder where datafiles are. Works with the firmware version
+#     '2212'.
 
-    Parameters
-    ----------
-    path : str
-        Path to the datafiles.
-    daughterboard_number : str
-        The LinoSPAD2 daughterboard number. Required for choosing the
-        correct calibration data.
-    motherboard_number : str
-        The LinoSPAD2 motherboard number, including the "#".
-    firmware_version : str
-        LinoSPAD2 firmware version. Versions '2212b' (block) or '2212s'
-        (skip) are recognized.
-    timestamps : int, optional
-        Number of timestamps per pixel per acquisition cycle. Default is
-        "512".
-    scale : str, optional
-        Scale for the y-axis of the plot. Use "log" for logarithmic.
-        The default is "linear".
-    style : str, optional
-        Style of the plot. The default is "-o".
-    app_mask : bool, optional
-        Switch for applying the mask on warm/hot pixels. The default is
-        True.
-    color : str, optional
-        Color for the plot. The default is 'rebeccapurple'.
-    correct_pix_address : bool, optional
-        Switch for correcting pixel addressing for the faulty firmware
-        version for the 23 side of the daughterboard. The default is
-        False.
-    pickle_fig : bool, optional
-        Switch for pickling the figure. Can be used when plotting takes
-        a lot of time. The default is False.
-    absolute_timestamps : bool, optional
-        Indicator for data files with absolute timestamps. Default is
-        False.
-    single_file : optional
-        Switch for using only the first file in the folder. Can be
-        utilized for a quick plot. The default is False.
+#     Parameters
+#     ----------
+#     path : str
+#         Path to the datafiles.
+#     daughterboard_number : str
+#         The LinoSPAD2 daughterboard number. Required for choosing the
+#         correct calibration data.
+#     motherboard_number : str
+#         The LinoSPAD2 motherboard number, including the "#".
+#     firmware_version : str
+#         LinoSPAD2 firmware version. Versions '2212b' (block) or '2212s'
+#         (skip) are recognized.
+#     timestamps : int, optional
+#         Number of timestamps per pixel per acquisition cycle. Default is
+#         "512".
+#     y_scale : str, optional
+#         Scale for the y-axis of the plot. Use "log" for logarithmic.
+#         The default is "linear".
+#     style : str, optional
+#         Style of the plot. The default is "-o".
+#     apply_hot_pixel_mask : bool, optional
+#         Switch for applying the mask on warm/hot pixels. The default is
+#         True.
+#     color : str, optional
+#         Color for the plot. The default is 'rebeccapurple'.
+#     correct_pix_address : bool, optional
+#         Switch for correcting pixel addressing for the faulty firmware
+#         version for the 23 side of the daughterboard. The default is
+#         False.
+#     pickle_fig : bool, optional
+#         Switch for pickling the figure. Can be used when plotting takes
+#         a lot of time. The default is False.
+#     absolute_timestamps : bool, optional
+#         Indicator for data files with absolute timestamps. Default is
+#         False.
+#     single_file : optional
+#         Switch for using only the first file in the folder. Can be
+#         utilized for a quick plot. The default is False.
 
-    Returns
-    -------
-    None.
+#     Returns
+#     -------
+#     None.
 
-    Examples
-    -------
-    An example how the function can be used to get the sensor
-    occupation from a single file while looking for peaks - the most
-    quick and straightforward approach to find where the beams were
-    focused and get the peak position for further use in, e.g., delta_t
-    functions. Here, the data were collected using the '23'-side
-    sensor half which required correction of the pixel addressing.
-    Offset calibration for the sensor is not available therefore
-    it should be skipped.
+#     Examples
+#     -------
+#     An example how the function can be used to get the sensor
+#     occupation from a single file while looking for peaks - the most
+#     quick and straightforward approach to find where the beams were
+#     focused and get the peak position for further use in, e.g., delta_t
+#     functions. Here, the data were collected using the '23'-side
+#     sensor half which required correction of the pixel addressing.
+#     Offset calibration for the sensor is not available therefore
+#     it should be skipped.
 
-    First, get the absolute path to where the '.dat' files are.
-    >>> path = r'C:/Path/To/Data'
+#     First, get the absolute path to where the '.dat' files are.
+#     >>> path = r'C:/Path/To/Data'
 
-    Now to the function itself.
-    >>> plot_sensor_popuation(
-    >>> path,
-    >>> daughterboard_number="NL11",
-    >>> motherboard_number="#21",
-    >>> firmware_version="2212s",
-    >>> timestamps = 1000,
-    >>> correct_pix_address = True,
-    >>> fit_peaks = True,
-    >>> single_file = True,
-    >>> )
-    """
-    # parameter type check
-    if not isinstance(firmware_version, str):
-        raise TypeError(
-            "'firmware_version' should be a string, '2212b' or '2212s'"
-        )
-    if not isinstance(daughterboard_number, str):
-        raise TypeError(
-            "'daughterboard_number' should be a string, 'NL11' or 'A5'"
-        )
-    if not isinstance(motherboard_number, str):
-        raise TypeError("'motherboard_number' should be a string")
+#     Now to the function itself.
+#     >>> plot_sensor_popuation(
+#     >>> path,
+#     >>> daughterboard_number="NL11",
+#     >>> motherboard_number="#21",
+#     >>> firmware_version="2212s",
+#     >>> timestamps = 1000,
+#     >>> correct_pix_address = True,
+#     >>> find_peaks = True,
+#     >>> single_file = True,
+#     >>> )
+#     """
+#     # parameter type check
+#     if not isinstance(firmware_version, str):
+#         raise TypeError(
+#             "'firmware_version' should be a string, '2212b' or '2212s'"
+#         )
+#     if not isinstance(daughterboard_number, str):
+#         raise TypeError(
+#             "'daughterboard_number' should be a string, 'NL11' or 'A5'"
+#         )
+#     if not isinstance(motherboard_number, str):
+#         raise TypeError("'motherboard_number' should be a string")
 
-    os.chdir(path)
+#     os.chdir(path)
 
-    files = glob.glob("*.dat*")
-    files.sort(key=os.path.getmtime)
+#     files = glob.glob("*.dat*")
+#     files.sort(key=os.path.getmtime)
 
-    if single_file:
-        files = files[0]
-        plot_name = files[:-4]
-    else:
-        plot_name = files[0][:-4] + "-" + files[-1][:-4]
+#     if single_file:
+#         files = files[0]
+#         plot_name = files[:-4]
+#     else:
+#         plot_name = files[0][:-4] + "-" + files[-1][:-4]
 
-    print(
-        "\n> > > Collecting data for sensor population plot,"
-        f"Working in {path} < < <\n"
-    )
+#     print(
+#         "\n> > > Collecting data for sensor population plot,"
+#         f"Working in {path} < < <\n"
+#     )
 
-    # If fitting the peaks, calculate the photon rates in each peak as
-    # well
-    _, rates = collect_data_and_apply_mask(
-        files,
-        daughterboard_number,
-        motherboard_number,
-        firmware_version,
-        timestamps,
-        app_mask,
-        absolute_timestamps,
-        save_to_file=False,
-        correct_pix_address=correct_pix_address,
-        calculate_rates=True,
-    )
+#     # If fitting the peaks, calculate the photon rates in each peak as
+#     # well
+#     _, rates = collect_data_and_apply_mask(
+#         files,
+#         daughterboard_number,
+#         motherboard_number,
+#         firmware_version,
+#         timestamps,
+#         apply_hot_pixel_mask,
+#         absolute_timestamps,
+#         save_to_file=False,
+#         correct_pix_address=correct_pix_address,
+#         calculate_rates=True,
+#     )
 
-    # Plotting
-    print("\n> > > Plotting < < <\n")
-    plt.rcParams.update({"font.size": 30})
-    fig = plt.figure(figsize=(16, 10))
-    fig.subplots_adjust(top=0.94, right=0.93)
-    if scale == "log":
-        plt.yscale("log")
-    if np.max(rates) > 1e3:
-        plt.plot(rates / 1e3, style, color=color)
-        plt.ylabel("Photon rate (kHz)")
-    elif np.max(rates) > 1e6:
-        plt.plot(rates / 1e6, style, color=color)
-        plt.ylabel("Photon rate (MHz)")
-    else:
-        plt.plot(rates, style, color=color)
-        plt.ylabel("Photon rate (Hz)")
-    plt.xlabel("Pixel number (-)")
+#     # Plotting
+#     print("\n> > > Plotting < < <\n")
+#     plt.rcParams.update({"font.size": 30})
+#     fig = plt.figure(figsize=(16, 10))
+#     fig.subplots_adjust(top=0.94, right=0.93)
+#     if y_scale == "log":
+#         plt.yy_scale("log")
+#     if np.max(rates) > 1e3:
+#         plt.plot(rates / 1e3, style, color=color)
+#         plt.ylabel("Photon rate (kHz)")
+#     elif np.max(rates) > 1e6:
+#         plt.plot(rates / 1e6, style, color=color)
+#         plt.ylabel("Photon rate (MHz)")
+#     else:
+#         plt.plot(rates, style, color=color)
+#         plt.ylabel("Photon rate (Hz)")
+#     plt.xlabel("Pixel number (-)")
 
-    # Save the figure
-    try:
-        os.chdir("results/sensor_population")
-    except FileNotFoundError:
-        os.makedirs("results/sensor_population")
-        os.chdir("results/sensor_population")
-    # fig.tight_layout()
-    if single_file:
-        plt.savefig(f"{plot_name}_single_file_ver2.png")
-        print(
-            "> > > The plot is saved as '{plot_name}_rates_single_file.png'"
-            "in {os.getcwd()} < < <"
-        )
-        if pickle_fig:
-            pickle.dump(
-                fig, open(f"{plot_name}_rates_single_file.pickle", "wb")
-            )
-    else:
-        plt.savefig(f"{plot_name}.png")
-        print(
-            f"> > > The plot is saved as '{plot_name}_rates.png' "
-            f"in {os.getcwd()} < < <"
-        )
-        if pickle_fig:
-            pickle.dump(fig, open(f"{plot_name}_rates.pickle", "wb"))
+#     # Save the figure
+#     try:
+#         os.chdir("results/sensor_population")
+#     except FileNotFoundError:
+#         os.makedirs("results/sensor_population")
+#         os.chdir("results/sensor_population")
+#     # fig.tight_layout()
+#     if single_file:
+#         plt.savefig(f"{plot_name}_single_file_ver2.png")
+#         print(
+#             "> > > The plot is saved as '{plot_name}_rates_single_file.png'"
+#             "in {os.getcwd()} < < <"
+#         )
+#         if pickle_fig:
+#             pickle.dump(
+#                 fig, open(f"{plot_name}_rates_single_file.pickle", "wb")
+#             )
+#     else:
+#         plt.savefig(f"{plot_name}.png")
+#         print(
+#             f"> > > The plot is saved as '{plot_name}_rates.png' "
+#             f"in {os.getcwd()} < < <"
+#         )
+#         if pickle_fig:
+#             pickle.dump(fig, open(f"{plot_name}_rates.pickle", "wb"))
 
-    os.chdir("../..")
+#     os.chdir("../..")
 
-    return fig
+#     return fig
 
 
 def plot_sensor_population_full_sensor(
@@ -739,12 +769,12 @@ def plot_sensor_population_full_sensor(
     motherboard_number2: str,
     firmware_version: str,
     timestamps: int = 512,
-    scale: str = "linear",
+    y_scale: str = "linear",
     style: str = "-o",
-    app_mask: bool = True,
+    apply_hot_pixel_mask: bool = True,
     color: str = "salmon",
-    fit_peaks: bool = False,
-    threshold_multiplier: int = 10,
+    find_peaks: bool = False,
+    peak_threshold: int = 10,
     pickle_fig: bool = False,
     single_file: bool = False,
     absolute_timestamps: bool = False,
@@ -774,20 +804,20 @@ def plot_sensor_population_full_sensor(
     timestamps : int, optional
         Number of timestamps per pixel per acquisition cycle. Default is
         "512".
-    scale : str, optional
+    y_scale : str, optional
         Scale for the y-axis of the plot. Use "log" for logarithmic.
         The default is "linear".
     style : str, optional
         Style of the plot. The default is "-o".
-    app_mask : bool, optional
+    apply_hot_pixel_mask : bool, optional
         Switch for applying the mask on warm/hot pixels. The default is
         True.
     color : str, optional
         Color for the plot. The default is 'salmon'.
-    fit_peaks : bool, optional
+    find_peaks : bool, optional
         Switch for finding the highest peaks and fitting them with a
         Gaussian to provide their position. The default is False.
-    threshold_multiplier : int, optional
+    peak_threshold : int, optional
         Threshold multiplier for setting the threshold for finding peaks.
         The default is 10.
     pickle_fig : bool, optional
@@ -862,7 +892,7 @@ def plot_sensor_population_full_sensor(
         motherboard_number1,
         firmware_version,
         timestamps,
-        app_mask,
+        apply_hot_pixel_mask,
         absolute_timestamps,
     )
 
@@ -887,7 +917,7 @@ def plot_sensor_population_full_sensor(
         motherboard_number2,
         firmware_version,
         timestamps,
-        app_mask,
+        apply_hot_pixel_mask,
         absolute_timestamps,
     )
 
@@ -907,15 +937,15 @@ def plot_sensor_population_full_sensor(
     plt.rcParams.update({"font.size": 30})
     fig = plt.figure(figsize=(16, 10))
     fig.subplots_adjust(top=0.94, right=0.93)
-    if scale == "log":
-        plt.yscale("log")
+    if y_scale == "log":
+        plt.yy_scale("log")
     plt.plot(valid_per_pixel, style, color=color)
     plt.xlabel("Pixel number (-)")
     plt.ylabel("Photons (-)")
 
-    # Find and fit peaks if fit_peaks is True
-    if fit_peaks:
-        threshold = np.median(valid_per_pixel) * threshold_multiplier
+    # Find and fit peaks if find_peaks is True
+    if find_peaks:
+        threshold = np.median(valid_per_pixel) * peak_threshold
         fit_width = 10
         peaks, _ = find_peaks(valid_per_pixel, height=threshold)
         peaks = np.unique(peaks)

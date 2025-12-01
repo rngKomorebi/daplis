@@ -21,6 +21,184 @@ import numpy as np
 
 from daplis.functions.calibrate import load_calibration_data
 
+# def unpack_binary_data(
+#     file: str,
+#     daughterboard_number: str,
+#     motherboard_number: str,
+#     firmware_version: str,
+#     timestamps: int = 512,
+#     include_offset: bool = False,
+#     apply_calibration: bool = True,
+# ) -> np.ndarray:
+#     """Unpacks binary-encoded data from LinoSPAD2 firmware version 2212.
+
+#     Parameters
+#     ----------
+#     file : str
+#         Path to the binary data file.
+#     daughterboard_number : str
+#         LinoSPAD2 daughterboard number.
+#     motherboard_number : str
+#         LinoSPAD2 motherboard (FPGA) number, including the "#".
+#     firmware_version : str
+#         LinoSPAD2 firmware version. Either '2212s' (skip) or '2212b' (block).
+#     timestamps : int, optional
+#         Number of timestamps per cycle per TDC per acquisition cycle.
+#         The default is 512.
+#     include_offset : bool, optional
+#         Switch for applying offset calibration. The default is False.
+#     apply_calibration : bool, optional
+#         Switch for applying TDC and offset calibration. If set to 'True'
+#         while include_offset is set to 'False', only the TDC
+#         calibration is applied. The default is True.
+
+#     Returns
+#     -------
+#     data_all : array-like
+#         3D array of pixel coordinates in the TDC and the timestamps.
+
+#     Raises
+#     ------
+#     TypeError
+#         If 'daughterboard_number', 'motherboard_number', or 'firmware_version'
+#         parameters are not of string type.
+#     FileNotFoundError
+#         If no calibration data file is found.
+
+#     Notes
+#     -----
+#     The returned data is a 3D array where rows represent TDC numbers,
+#     columns represent the data, and each cell contains a pixel number in
+#     the TDC (from 0 to 3) and the timestamp recorded by that pixel.
+#     """
+#     # Parameter type check
+#     if not isinstance(daughterboard_number, str):
+#         raise TypeError("'daughterboard_number' should be a string.")
+#     if not isinstance(motherboard_number, str):
+#         raise TypeError("'motherboard_number' should be a string.")
+#     if not isinstance(firmware_version, str):
+#         raise TypeError("'firmware_version' should be a string.")
+
+#     # Unpack binary data
+#     raw_data = np.fromfile(file, dtype=np.uint32)
+#     # Timestamps are stored in the lower 28 bits
+#     data_timestamps = (raw_data & 0xFFFFFFF).astype(np.int64)
+#     # Pixel address in the given TDC is 2 bits above timestamp
+#     data_pixels = ((raw_data >> 28) & 0x3).astype(np.int8)
+#     # Check the top bit, assign '-1' to invalid timestamps
+#     data_timestamps[raw_data < 0x80000000] = -1
+#     # Free up memory
+#     del raw_data
+
+#     # Number of acquisition cycles in each data file
+#     cycles = len(data_timestamps) // (timestamps * 65)
+#     # Transform into a matrix of size 65 by cycles*timestamps
+#     data_pixels = (
+#         data_pixels.reshape(cycles, 65, timestamps)
+#         .transpose((1, 0, 2))
+#         .reshape(65, -1)
+#     )
+
+#     data_timestamps = (
+#         data_timestamps.reshape(cycles, 65, timestamps)
+#         .transpose((1, 0, 2))
+#         .reshape(65, -1)
+#     )
+
+#     # Cut the 65th TDC that does not hold any actual data from pixels
+#     data_pixels = data_pixels[:-1]
+#     data_timestamps = data_timestamps[:-1]
+
+#     # Insert '-2' at the end of each cycle
+#     insert_indices = np.linspace(
+#         timestamps, cycles * timestamps, cycles
+#     ).astype(np.int64)
+
+#     data_pixels = np.insert(
+#         data_pixels,
+#         insert_indices,
+#         -2,
+#         1,
+#     )
+#     data_timestamps = np.insert(
+#         data_timestamps,
+#         insert_indices,
+#         -2,
+#         1,
+#     )
+
+#     # Combine both matrices into a single one, where each cell holds pixel
+#     # coordinates in the TDC and the timestamp
+#     data_all = np.stack((data_pixels, data_timestamps), axis=2).astype(
+#         np.int64
+#     )
+
+#     if apply_calibration is False:
+#         data_all[:, :, 1] = data_all[:, :, 1] * 2500 / 140
+#     else:
+#         # Path to the calibration data
+#         if firmware_version == "2212b":
+#             pix_coordinates = np.arange(256).reshape(64, 4)
+#         else:
+#             pix_coordinates = np.arange(256).reshape(4, 64).T
+
+#         path_calibration_data = os.path.join(
+#             os.path.dirname(os.path.realpath(__file__)),
+#             "..",
+#             "params",
+#             "calibration_data",
+#         )
+
+#         # Include the offset calibration or not
+#         try:
+#             if include_offset:
+#                 calibration_matrix, offset_array = load_calibration_data(
+#                     path_calibration_data,
+#                     daughterboard_number,
+#                     motherboard_number,
+#                     firmware_version,
+#                     include_offset,
+#                 )
+#             else:
+#                 calibration_matrix = load_calibration_data(
+#                     path_calibration_data,
+#                     daughterboard_number,
+#                     motherboard_number,
+#                     firmware_version,
+#                     include_offset,
+#                 )
+#         except FileNotFoundError:
+#             raise FileNotFoundError(
+#                 "No .csv file with the calibration data was found. "
+#                 "Check the path or run the calibration."
+#             )
+
+#         for i in range(256):
+#             # Transform pixel number to TDC number and pixel coordinates in
+#             # that TDC (from 0 to 3)
+#             tdc, pix = np.argwhere(pix_coordinates == i)[0]
+#             # Find data from that pixel
+#             ind = np.where(data_all[tdc].T[0] == pix)[0]
+#             # Cut non-valid timestamps ('-1's)
+#             ind = ind[data_all[tdc].T[1][ind] >= 0]
+#             if not np.any(ind):
+#                 continue
+#             data_cut = data_all[tdc].T[1][ind]
+#             # Apply calibration; offset is added due to how delta ts are
+#             # calculated
+#             if include_offset:
+#                 data_all[tdc].T[1][ind] = (
+#                     (data_cut - data_cut % 140) * 2500 / 140
+#                     + calibration_matrix[i, (data_cut % 140)]
+#                     + offset_array[i]
+#                 )
+#             else:
+#                 data_all[tdc].T[1][ind] = (
+#                     data_cut - data_cut % 140
+#                 ) * 2500 / 140 + calibration_matrix[i, (data_cut % 140)]
+
+#     return data_all
+
 
 def unpack_binary_data(
     file: str,
@@ -28,9 +206,7 @@ def unpack_binary_data(
     motherboard_number: str,
     firmware_version: str,
     timestamps: int = 512,
-    include_offset: bool = False,
-    apply_calibration: bool = True,
-) -> np.ndarray:
+) -> tuple[np.ndarray, np.ndarray]:
     """Unpacks binary-encoded data from LinoSPAD2 firmware version 2212.
 
     Parameters
@@ -46,31 +222,24 @@ def unpack_binary_data(
     timestamps : int, optional
         Number of timestamps per cycle per TDC per acquisition cycle.
         The default is 512.
-    include_offset : bool, optional
-        Switch for applying offset calibration. The default is False.
-    apply_calibration : bool, optional
-        Switch for applying TDC and offset calibration. If set to 'True'
-        while include_offset is set to 'False', only the TDC
-        calibration is applied. The default is True.
 
     Returns
     -------
-    data_all : array-like
-        3D array of pixel coordinates in the TDC and the timestamps.
-
+    data_pixels : array-like
+        2D array of pixel coordinates in the TDC.
+    data_timestamps : array-like
+        2D array of photon timestamps.
     Raises
     ------
     TypeError
         If 'daughterboard_number', 'motherboard_number', or 'firmware_version'
         parameters are not of string type.
-    FileNotFoundError
-        If no calibration data file is found.
 
     Notes
     -----
-    The returned data is a 3D array where rows represent TDC numbers,
+    The returned data are two 2D arrays where rows represent TDC numbers,
     columns represent the data, and each cell contains a pixel number in
-    the TDC (from 0 to 3) and the timestamp recorded by that pixel.
+    the TDC (from 0 to 3) or the timestamp recorded by that pixel.
     """
     # Parameter type check
     if not isinstance(daughterboard_number, str):
@@ -110,97 +279,10 @@ def unpack_binary_data(
     data_pixels = data_pixels[:-1]
     data_timestamps = data_timestamps[:-1]
 
-    # Insert '-2' at the end of each cycle
-    insert_indices = np.linspace(
-        timestamps, cycles * timestamps, cycles
-    ).astype(np.int64)
-
-    data_pixels = np.insert(
-        data_pixels,
-        insert_indices,
-        -2,
-        1,
-    )
-    data_timestamps = np.insert(
-        data_timestamps,
-        insert_indices,
-        -2,
-        1,
-    )
-
-    # Combine both matrices into a single one, where each cell holds pixel
-    # coordinates in the TDC and the timestamp
-    data_all = np.stack((data_pixels, data_timestamps), axis=2).astype(
-        np.int64
-    )
-
-    if apply_calibration is False:
-        data_all[:, :, 1] = data_all[:, :, 1] * 2500 / 140
-    else:
-        # Path to the calibration data
-        if firmware_version == "2212b":
-            pix_coordinates = np.arange(256).reshape(64, 4)
-        else:
-            pix_coordinates = np.arange(256).reshape(4, 64).T
-
-        path_calibration_data = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)),
-            "..",
-            "params",
-            "calibration_data",
-        )
-
-        # Include the offset calibration or not
-        try:
-            if include_offset:
-                calibration_matrix, offset_array = load_calibration_data(
-                    path_calibration_data,
-                    daughterboard_number,
-                    motherboard_number,
-                    firmware_version,
-                    include_offset,
-                )
-            else:
-                calibration_matrix = load_calibration_data(
-                    path_calibration_data,
-                    daughterboard_number,
-                    motherboard_number,
-                    firmware_version,
-                    include_offset,
-                )
-        except FileNotFoundError:
-            raise FileNotFoundError(
-                "No .csv file with the calibration data was found. "
-                "Check the path or run the calibration."
-            )
-
-        for i in range(256):
-            # Transform pixel number to TDC number and pixel coordinates in
-            # that TDC (from 0 to 3)
-            tdc, pix = np.argwhere(pix_coordinates == i)[0]
-            # Find data from that pixel
-            ind = np.where(data_all[tdc].T[0] == pix)[0]
-            # Cut non-valid timestamps ('-1's)
-            ind = ind[data_all[tdc].T[1][ind] >= 0]
-            if not np.any(ind):
-                continue
-            data_cut = data_all[tdc].T[1][ind]
-            # Apply calibration; offset is added due to how delta ts are
-            # calculated
-            if include_offset:
-                data_all[tdc].T[1][ind] = (
-                    (data_cut - data_cut % 140) * 2500 / 140
-                    + calibration_matrix[i, (data_cut % 140)]
-                    + offset_array[i]
-                )
-            else:
-                data_all[tdc].T[1][ind] = (
-                    data_cut - data_cut % 140
-                ) * 2500 / 140 + calibration_matrix[i, (data_cut % 140)]
-
-    return data_all
+    return data_pixels, data_timestamps
 
 
+# TODO update with faster version
 def unpack_binary_data_with_absolute_timestamps(
     file_path: str,
     daughterboard_number: str,
