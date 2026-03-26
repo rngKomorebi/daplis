@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-03-26
+
+New example, functionality; cleaning up
+
+### Added
+
+- New jupyter notebook with SNR analysis estimating time to expected SNR for HBT peak; plus how long to collect to see HBT
+
+- Plotting both rates and # of photons by default for plot_sensor_population
+
 ## [1.4.0] - 2025-12-01
 
 Faster functions, cleaner implementation.
