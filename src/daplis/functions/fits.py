@@ -1348,6 +1348,7 @@ def fit_with_gaussian_fancy(
 
             # The divisor in the SNR (signal height / sigma of bckg)
             bckg_stderr = np.std(n)
+            bckg_stderr_err = bckg_stderr / np.sqrt((2 * np.sum(n) - 1))
 
             # Calculate histogram
             # Scott's rule for the number of bins
@@ -1472,6 +1473,13 @@ def fit_with_gaussian_fancy(
                     * 100
                 )
             # Parameters
+            SNR = result.params["height"] / bckg_stderr
+            SNR_err = utils.error_propagation_division(
+                result.params["height"].value,
+                result.params["height"].stderr,
+                bckg_stderr,
+                bckg_stderr_err,
+            )
             try:
                 fit_params_text = "\n".join(
                     [
@@ -1482,11 +1490,17 @@ def fit_with_gaussian_fancy(
                         f"$\mu$: ({result.params['center'].value:.0f}"
                         f"±{result.params['center'].stderr:.0f}) ps",
                         f"C: ({contrast:.0f}" f"±{contrast_stderr:.0f}) %",
-                        f"SNR: {result.params['height'] / bckg_stderr:.0f} $\sigma$",
+                        f"SNR: ({SNR:.0f}" f"±{SNR_err:.0f}) $\sigma$",
                     ]
                 )
             except TypeError:
                 continue
+
+            fc = mpl.rcParams.get("patch.facecolor", "white")
+
+            # If color is the default Matplotlib blue, override it:
+            if fc == mpl.rcParamsDefault["patch.facecolor"]:
+                fc = "white"
 
             ax1.text(
                 1.05,
@@ -1496,7 +1510,8 @@ def fit_with_gaussian_fancy(
                 fontsize=24,
                 bbox=dict(
                     boxstyle="round,pad=0.5",
-                    facecolor=mpl.rcParams["patch.facecolor"],
+                    # facecolor=mpl.rcParams["patch.facecolor"],
+                    facecolor=fc,
                     edgecolor=mpl.rcParams.get("patch.edgecolor", "black"),
                 ),
             )
