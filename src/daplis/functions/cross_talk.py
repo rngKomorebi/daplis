@@ -744,16 +744,17 @@ def collect_dcr_by_file(
 
     dcr = []
 
+    if firmware_version == "2212s":
+        pix_coordinates = np.arange(256).reshape(4, 64).T
+    elif firmware_version == "2212b":
+        pix_coordinates = np.arange(256).reshape(64, 4)
+    else:
+        print("\nFirmware version is not recognized.")
+        sys.exit()
+
     for i in tqdm(range(len(files)), desc="Going through files"):
         # Define matrix of pixel coordinates, where rows are numbers of TDCs
         # and columns are the pixels that connected to these TDCs
-        if firmware_version == "2212s":
-            pix_coordinates = np.arange(256).reshape(4, 64).T
-        elif firmware_version == "2212b":
-            pix_coordinates = np.arange(256).reshape(64, 4)
-        else:
-            print("\nFirmware version is not recognized.")
-            sys.exit()
 
         # Unpack the data; offset calibration is not necessary
         data_pixels, data_timestamps = f_up.unpack_binary_data(
