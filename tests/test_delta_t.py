@@ -7,11 +7,14 @@ import numpy as np
 from daplis.functions.delta_t import (
     calculate_and_save_timestamp_differences,
     collect_and_plot_timestamp_differences,
+    unpickle_plot,
 )
 from daplis.functions.fits import (
     fit_with_gaussian,
     fit_with_gaussian_all,
+    fit_with_gaussian_combine,
     fit_with_gaussian_fancy,
+    unpickle_fit,
 )
 
 
@@ -118,6 +121,31 @@ class TestDeltasFull(unittest.TestCase):
             )
         )
 
+    def test_c_delta_cp_pickle(self):
+        # Test that collect_and_plot produces a pickle file when requested
+        work_dir = os.path.dirname(os.path.realpath(__file__)) + "/.."
+
+        path = os.path.join(work_dir, self.partial_path)
+
+        collect_and_plot_timestamp_differences(
+            path,
+            pixels=[x for x in range(67, 69)] + [x for x in range(173, 175)],
+            rewrite=self.rewrite,
+            range_left=self.range_left,
+            range_right=self.range_right,
+            same_y=self.same_y,
+            pickle_figure=True,
+        )
+
+        self.assertTrue(
+            os.path.isfile(
+                os.path.join(
+                    path,
+                    "results/delta_t/test_data_2212b-test_data_2212b_delta_t_grid.pkl",
+                )
+            )
+        )
+
     def test_d_fit_with_gaussian_positive(self):
         # Test with valid input
         work_dir = os.path.dirname(os.path.realpath(__file__)) + "/.."
@@ -147,6 +175,53 @@ class TestDeltasFull(unittest.TestCase):
                     f"pixels_{pixels[0]},{pixels[1]}_fit.png",
                 )
             )
+        )
+
+    def test_d_fit_with_gaussian_combine_positive(self):
+        # Test with valid input
+        pixels = [82, 116]
+
+        work_dir = os.path.dirname(os.path.realpath(__file__)) + "/.."
+
+        path = os.path.join(work_dir, self.partial_path)
+
+        ft_file = r"test.feather"
+
+        fit_with_gaussian_combine(
+            path,
+            pixels=pixels,
+            ft_file=ft_file,
+            range_left=-10e3,
+            range_right=10e3,
+            multiplier=5,
+        )
+
+        self.assertTrue(
+            os.path.isfile("results/fits/test_pixels_[82],[116]_fit.png")
+        )
+
+    def test_d_fit_with_gaussian_combine_pickle_positive(self):
+        # Test with valid input
+        pixels = [82, 116]
+
+        work_dir = os.path.dirname(os.path.realpath(__file__)) + "/.."
+
+        path = os.path.join(work_dir, self.partial_path)
+
+        ft_file = r"test.feather"
+
+        fit_with_gaussian_combine(
+            path,
+            pixels=pixels,
+            ft_file=ft_file,
+            range_left=-10e3,
+            range_right=10e3,
+            multiplier=5,
+            pickle_figure=True,
+        )
+
+        self.assertTrue(
+            os.path.isfile("results/fits/test_pixels_[82],[116]_fit.pkl")
         )
 
     def test_d_fit_with_gaussian_all_positive(self):
@@ -287,6 +362,29 @@ class TestDeltasFull(unittest.TestCase):
                 f"results/fits/test_pixels_{pixels[0]},{pixels[1]}_fancy_fit.pkl"
             )
         )
+
+    def test_e_unpickle_delta_t_plot(self):
+        # Test that unpickle_plot returns valid figure and data
+        work_dir = os.path.dirname(os.path.realpath(__file__)) + "/.."
+        path = os.path.join(work_dir, self.partial_path)
+        pkl_file = os.path.join(
+            path,
+            "results/delta_t/test_data_2212b-test_data_2212b_delta_t_grid.pkl",
+        )
+        result = unpickle_plot(pkl_file)
+        self.assertIsNotNone(result)
+
+    def test_e_unpickle_fit(self):
+        # Test that unpickle_fit returns valid figure, data and params
+        work_dir = os.path.dirname(os.path.realpath(__file__)) + "/.."
+        path = os.path.join(work_dir, self.partial_path)
+        pkl_file = os.path.join(
+            path,
+            "results/fits/test_data_2212b-test_data_2212b_pixels_67,174_fit.pkl",
+        )
+        fig, plot_data, params_df = unpickle_fit(pkl_file)
+        self.assertIsNotNone(fig)
+        self.assertIsInstance(plot_data, dict)
 
     def tearDownClass():
         # Clean up after tests

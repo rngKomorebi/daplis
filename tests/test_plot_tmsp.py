@@ -5,6 +5,7 @@ import unittest
 from daplis.functions.sensor_plot import (
     plot_sensor_population,
     plot_single_pix_hist,
+    unpickle_plot,
 )
 
 
@@ -54,6 +55,36 @@ class TestPlotScripts(unittest.TestCase):
                 "results/sensor_population/test_data_2212b-test_data_2212b.png"
             )
         )
+
+    def test_c_plot_sen_pop_pickle(self):
+        # Test that plot_sensor_population creates pickle files when requested
+        os.chdir(
+            r"{}".format(os.path.dirname(os.path.realpath(__file__)) + "/..")
+        )
+        plot_sensor_population(
+            self.path,
+            self.daughterboard_number,
+            self.motherboard_number,
+            self.firmware_version,
+            self.timestamps,
+            pickle_fig=True,
+        )
+        self.assertTrue(
+            os.path.isfile(
+                "results/sensor_population/test_data_2212b-test_data_2212b_rates.pickle"
+            )
+        )
+
+    def test_d_unpickle_sensor_plot(self):
+        # Test that unpickle_plot returns valid figure and data
+        work_dir = os.path.dirname(os.path.realpath(__file__)) + "/.."
+        pkl_file = os.path.join(
+            work_dir,
+            self.path,
+            "results/sensor_population/test_data_2212b-test_data_2212b_rates.pickle",
+        )
+        result = unpickle_plot(pkl_file)
+        self.assertIsNotNone(result)
 
     def tearDownClass():
         # Clean up after tests

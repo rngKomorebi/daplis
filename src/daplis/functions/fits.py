@@ -59,8 +59,8 @@ def fit_with_gaussian(
     range_right: float = 5e3,
     multiplier: int = 1,
     normalize: bool = False,
-    color_data: str = "rebeccapurple",
-    color_fit: str = "darkorange",
+    color_data: str | None = None,
+    color_fit: str | None = None,
     title_on: bool = True,
     correct_pix_address: bool = False,
     return_fit_params: bool = False,
@@ -193,7 +193,6 @@ def fit_with_gaussian(
             )
 
             os.chdir(path)
-            plt.rcParams.update({"font.size": 30})
 
             # Bins must be in units of 17.857 ps (2500/140)
             bins = np.arange(
@@ -346,8 +345,8 @@ def fit_with_gaussian_combine(
     range_right: float = 5e3,
     multiplier: int = 1,
     normalize: bool = False,
-    color_data: str = "rebeccapurple",
-    color_fit: str = "darkorange",
+    color_data: str | None = None,
+    color_fit: str | None = None,
     title_on: bool = True,
     correct_pix_address: bool = False,
     return_fit_params: bool = False,
@@ -481,7 +480,6 @@ def fit_with_gaussian_combine(
             )
 
             os.chdir(path)
-            plt.rcParams.update({"font.size": 30})
 
             # Bins must be in units of 17.857 ps (2500/140)
             bins = np.arange(
@@ -648,8 +646,8 @@ def fit_with_gaussian_all(
     range_right: float = 5e3,
     multiplier: int = 1,
     normalize: bool = False,
-    color_d: str = "rebeccapurple",
-    color_f: str = "darkorange",
+    color_d: str | None = None,
+    color_f: str | None = None,
     title_on: bool = True,
     correct_pix_address: bool = False,
     return_fit_params: bool = False,
@@ -778,7 +776,6 @@ def fit_with_gaussian_all(
             )
 
             os.chdir(path)
-            plt.rcParams.update({"font.size": 30})
 
             # Bins must be in units of 17.857 ps (2500/140)
             bins = np.arange(
@@ -986,8 +983,8 @@ def fit_with_gaussian_full_sensor(
     pix_pair: List[int],
     window: float = 5e3,
     multiplier: int = 1,
-    color_data: str = "rebeccapurple",
-    color_fit: str = "darkorange",
+    color_data: str | None = None,
+    color_fit: str | None = None,
     title_on: bool = True,
 ):
     """Fit with Gaussian function and plot it.
@@ -1092,7 +1089,6 @@ def fit_with_gaussian_full_sensor(
     data_to_plot = np.delete(data_to_plot, np.argwhere(data_to_plot > window))
 
     os.chdir("..")
-    plt.rcParams.update({"font.size": 30})
 
     # Bins must be in units of 17.857 ps (2500/140)
     bins = np.arange(
@@ -1414,7 +1410,6 @@ def fit_with_gaussian_fancy(
                 )
 
             # Plot results
-            plt.rcParams.update({"font.size": 30})
             fig, ((ax1, _), (ax2, ax3)) = plt.subplots(
                 2,
                 2,
@@ -1424,22 +1419,18 @@ def fit_with_gaussian_fancy(
             fig.subplots_adjust(top=0.94, right=0.93)
 
             # Data + fit
-            ax1.plot(
-                bin_centers, counts, ".", label="Data", color="rebeccapurple"
-            )
+            ax1.plot(bin_centers, counts, ".", label="Data")
             if not interpolate_fit:
                 ax1.plot(
                     bin_centers,
                     result.best_fit,
                     label="Gaussian fit",
-                    color="darkorange",
                 )
             else:
                 ax1.plot(
                     fit_bins_plot,
                     fit_counts_plot,
                     label="Gaussian fit",
-                    color="darkorange",
                 )
             if normalize:
                 ax1.set_ylabel("Norm. coincidences (-)")
@@ -1525,8 +1516,6 @@ def fit_with_gaussian_fancy(
             ax2.set_ylabel("Residuals (-)")
             ax2.set_xlabel("$\Delta$t (ps)")
             ax2_lines = ax2.get_lines()
-            ax2_lines[0].set_color("black")
-            ax2_lines[1].set_color("rebeccapurple")
             ax2.set_xlim(
                 range_left,
                 range_right,
@@ -1547,7 +1536,6 @@ def fit_with_gaussian_fancy(
                 counts_residuals,
                 bins_residuals_edges,
                 ".",
-                color="rebeccapurple",
             )
 
             model_residuals = GaussianModel()
@@ -1561,7 +1549,6 @@ def fit_with_gaussian_fancy(
             ax3.plot(
                 result_residuals.best_fit,
                 bins_residuals_edges,
-                color="darkorange",
                 label="\n".join(
                     [
                         f"$\sigma$: {result_residuals.params['sigma'].value:.2f}",

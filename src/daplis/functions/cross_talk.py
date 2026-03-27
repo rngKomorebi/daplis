@@ -475,14 +475,12 @@ def _plot_cross_talk_peaks(
                 / (aggressor_pix_tmsps + victim_pix_tmsps)
             )
 
-        plt.rcParams.update({"font.size": 30})
         fig = plt.figure(figsize=(16, 10))
         fig.subplots_adjust(top=0.94, right=0.93)
-        plt.step(bin_centers, counts, color="rebeccapurple", label="Data")
+        plt.step(bin_centers, counts, label="Data")
         plt.plot(
             bin_centers,
             utils.gaussian(bin_centers, *params),
-            color="darkorange",
             label="Fit",
         )
         if senpop is not None:
@@ -565,7 +563,6 @@ def _plot_cross_talk_grid(
     ]
 
     fig, axes = plt.subplots(4, 5, figsize=(16, 10))
-    plt.rcParams.update({"font.size": 30})
     fig.subplots_adjust(top=0.94, right=0.93)
 
     for i, pix in enumerate(pixels[1:]):
@@ -614,51 +611,41 @@ def _plot_cross_talk_grid(
             continue
 
         if i < 5:
-            axes[0, i].plot(bin_centers, counts, ".", color="rebeccapurple")
+            axes[0, i].plot(bin_centers, counts, ".")
             axes[0, i].plot(
                 bin_centers,
                 utils.gaussian(bin_centers, *params),
                 "--",
-                color="darkorange",
             )
             axes[0, i].set_xticks([])
             axes[0, i].set_yticks([])
             axes[0, i].set_title(f"{pixels[0]},{pix}")
         elif i >= 5 and i < 10:
-            axes[1, i % 5].plot(
-                bin_centers, counts, ".", color="rebeccapurple"
-            )
+            axes[1, i % 5].plot(bin_centers, counts, ".")
             axes[1, i % 5].plot(
                 bin_centers,
                 utils.gaussian(bin_centers, *params),
                 "--",
-                color="darkorange",
             )
             axes[1, i % 5].set_xticks([])
             axes[1, i % 5].set_yticks([])
             axes[1, i % 5].set_title(f"{pixels[0]},{pix}")
         elif i >= 10 and i < 15:
-            axes[2, i % 5].plot(
-                bin_centers, counts, ".", color="rebeccapurple"
-            )
+            axes[2, i % 5].plot(bin_centers, counts, ".")
             axes[2, i % 5].plot(
                 bin_centers,
                 utils.gaussian(bin_centers, *params),
                 "--",
-                color="darkorange",
             )
             axes[2, i % 5].set_xticks([])
             axes[2, i % 5].set_yticks([])
             axes[2, i % 5].set_title(f"{pixels[0]},{pix}")
         else:
-            axes[3, i % 5].plot(
-                bin_centers, counts, ".", color="rebeccapurple"
-            )
+            axes[3, i % 5].plot(bin_centers, counts, ".")
             axes[3, i % 5].plot(
                 bin_centers,
                 utils.gaussian(bin_centers, *params),
                 "--",
-                color="darkorange",
             )
             axes[3, i % 5].set_xticks([])
             axes[3, i % 5].set_yticks([])
@@ -875,13 +862,11 @@ def plot_dcr_histogram_and_stability(
     dcr_median = np.median(data)
 
     # Plot the DCR stability graph: median DCR vs file
-    plt.rcParams.update({"font.size": 30})
     fig = plt.figure(figsize=(16, 10))
     fig.subplots_adjust(top=0.94, right=0.93)
     plt.plot(
         [x + 1 for x in range(len(data))],
         np.median(data, axis=1),
-        color="darkslateblue",
         label=f"Median DCR: {dcr_median:.0f} cps/pixel",
     )
     plt.title("DCR stability")
@@ -911,13 +896,12 @@ def plot_dcr_histogram_and_stability(
         bin_centers,
         hist,
         width=np.diff(bin_edges),
-        color="rebeccapurple",
     )
 
     # Calculate and plot the integral
     cumul = np.cumsum(hist)
     ax1 = ax.twinx()
-    ax1.plot(bin_centers, cumul / 256 * 100, color="darkorange", linewidth=3)
+    ax1.plot(bin_centers, cumul / 256 * 100, linewidth=3)
     ax.set_xlim(10)
     ax1.set_xlim(10)
     ax.set_ylim(0)
@@ -1058,13 +1042,11 @@ def _plot_cross_talk_vs_distance(
 
         fig = plt.figure(figsize=(16, 10))
         fig.subplots_adjust(top=0.94, right=0.93)
-        plt.rcParams.update({"font.size": 30})
         plt.errorbar(
             differences,
             list(CT.values()),
             list(CT_err.values()),
             fmt=".",
-            color="indianred",
         )
         aggressor_pix = int(list(CT.keys())[0].split(",")[0].split("(")[1])
         plt.title(
@@ -1157,7 +1139,6 @@ def _plot_average_cross_talk_vs_distance(
 
     fig = plt.figure(figsize=(16, 10))
     fig.subplots_adjust(top=0.94, right=0.93)
-    plt.rcParams.update({"font.size": 30})
     plt.title("Average cross-talk probability")
     plt.xlabel("Distance in pixels (-)")
     plt.ylabel("Cross-talk probability (%)")
@@ -1166,7 +1147,6 @@ def _plot_average_cross_talk_vs_distance(
         [x[0][0] for x in final_result_averages.values()],
         yerr=[x[0][1] for x in final_result_averages.values()],
         fmt=".",
-        color="darkred",
     )
     if pix_on_left:
         plt.savefig("Average_cross-talk_onleft.png")
@@ -1463,7 +1443,6 @@ def zero_to_cross_talk_plot(
 
     fig = plt.figure(figsize=(16, 10))
     fig.subplots_adjust(top=0.94, right=0.93)
-    plt.rcParams.update({"font.size": 30})
     plt.title("Average cross-talk probability")
     plt.xlabel("Distance in pixels (-)")
     plt.ylabel("Cross-talk probability (%)")
@@ -1473,7 +1452,6 @@ def zero_to_cross_talk_plot(
         [x[0] for x in on_both_average.values()],
         yerr=[x[1] for x in on_both_average.values()],
         fmt=".",
-        color="darkred",
         label=f"Immediate neighbor: {on_both_average[1][0]:.2f}%",
     )
     plt.tight_layout()
