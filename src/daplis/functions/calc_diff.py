@@ -242,6 +242,7 @@ def calculate_differences(
     return deltas_all
 
 
+# TODO check compatibility with latest unpack output
 def calculate_differences_1v1(
     data: ndarray,
     pixels: List[int] | List[List[int]],

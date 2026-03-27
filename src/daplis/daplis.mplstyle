@@ -1,0 +1,30 @@
+# daplis.mplstyle
+# Default matplotlib style for the daplis package.
+# Colors are chosen for colorblindness accessibility and publication quality.
+#
+# To use:
+#   import matplotlib.pyplot as plt
+#   import daplis
+#   plt.style.use(daplis.style_path)
+#
+# To switch to a custom style instead, simply call plt.style.use("your_style")
+# before running any daplis plotting functions.
+
+# Color cycle:
+#   0: rebeccapurple  (#663399) - primary data / histograms
+#   1: darkorange     (#FF8C00) - fits / overlaid curves
+#   2: teal           (#008080) - single-pixel histograms
+#   3: salmon         (#FA8072) - sensor population (full sensor)
+#   4: darkslateblue  (#483D8B) - DCR stability
+#   5: indianred      (#CD5C5C) - cross-talk error bars (single aggressor)
+#   6: darkred        (#8B0000) - cross-talk averages
+#   7: black          (#000000) - fit overlays / reference lines
+axes.prop_cycle: cycler(color=['663399', 'FF8C00', '008080', 'FA8072', '483D8B', 'CD5C5C', '8B0000', '000000'])
+
+# Typography
+font.size: 30
+
+# Figure defaults
+figure.figsize: 16, 10
+figure.subplot.top: 0.94
+figure.subplot.right: 0.93

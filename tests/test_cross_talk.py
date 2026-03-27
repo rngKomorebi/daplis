@@ -7,6 +7,7 @@ import numpy as np
 from daplis.functions.cross_talk import (
     collect_dcr_by_file,
     plot_dcr_histogram_and_stability,
+    unpickle_cross_talk,
     zero_to_cross_talk_collect,
     zero_to_cross_talk_plot,
 )
@@ -128,6 +129,16 @@ class TestCrossTalkFunctions(unittest.TestCase):
                 )
             )
         )
+
+    def test_unpickle_cross_talk(self):
+        # Test that unpickle_cross_talk returns valid arrays
+        work_dir = os.path.dirname(os.path.realpath(__file__)) + "/.."
+        path = os.path.join(work_dir, self.partial_path)
+        pkl_file = os.path.join(path, "ct_vs_distance/Average_cross-talk.pkl")
+        x, y, yerr = unpickle_cross_talk(pkl_file)
+        self.assertIsNotNone(x)
+        self.assertIsNotNone(y)
+        self.assertIsNotNone(yerr)
 
     def tearDownClass():
         # Clean up after tests

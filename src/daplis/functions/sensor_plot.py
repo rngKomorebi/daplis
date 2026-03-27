@@ -36,6 +36,7 @@ from typing import List
 
 import numpy as np
 from matplotlib import pyplot as plt
+from matplotlib.lines import Line2D
 from scipy.optimize import curve_fit
 from scipy.signal import find_peaks
 from tqdm import tqdm
@@ -211,7 +212,7 @@ def plot_single_pix_hist(
     cycle_length: float = 4e9,
     multiplier: int = 1e6,
     fit_average: bool = False,
-    color: str = "teal",
+    color: str | None = None,
 ):
     """Plot a histogram for each pixel in the given range.
 
@@ -289,7 +290,6 @@ def plot_single_pix_hist(
 
         for i, _ in enumerate(pixels):
             plt.figure(figsize=(16, 10))
-            plt.rcParams.update({"font.size": 30})
             # Define matrix of pixel coordinates, where rows are numbers
             # of TDCs and columns are the pixels that connected to
             # these TDCs
@@ -325,7 +325,7 @@ def plot_single_pix_hist(
             # plt.plot(av_win_in, av_win, color="black", linewidth=8)
             if fit_average is True:
                 plt.gcf()
-                plt.plot(av_win_in, av_win_fit, color="black", linewidth=8)
+                plt.plot(av_win_in, av_win_fit, linewidth=8)
             plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
             plt.title(f"Pixel {pixels[i]}")
             try:
@@ -351,7 +351,7 @@ def plot_sensor_population(
     pickle_fig: bool = False,
     correct_pix_address: bool = False,
     absolute_timestamps: bool = False,
-) -> None:
+) -> tuple[plt.Figure, plt.Figure]:
     """Plot number of timestamps in each pixel for all datafiles.
 
     Plot sensor population as number of timestamps vs. pixel number.
@@ -479,19 +479,18 @@ def plot_sensor_population(
     # Plotting rates
     print("\n> > > Plotting < < <\n")
 
-    plt.rcParams.update({"font.size": 30})
     fig_rates = plt.figure(figsize=(16, 10))
     fig_rates.subplots_adjust(top=0.94, right=0.93)
     if y_scale == "log":
         plt.yscale("log")
     if np.max(rates) > 1e3:
-        plt.plot(rates / 1e3, "o-", color="rebeccapurple")
+        (data_line,) = plt.plot(rates / 1e3, "o-")
         plt.ylabel("Photon rate (kHz)")
     elif np.max(rates) > 1e6:
-        plt.plot(rates / 1e6, "o-", color="rebeccapurple")
+        (data_line,) = plt.plot(rates / 1e6, "o-")
         plt.ylabel("Photon rate (MHz)")
     else:
-        plt.plot(rates, "o-", color="rebeccapurple")
+        (data_line,) = plt.plot(rates, "o-")
         plt.ylabel("Photon rate (Hz)")
     plt.xlabel("Pixel number (-)")
 
@@ -502,6 +501,7 @@ def plot_sensor_population(
         peaks, _ = find_peaks(timestamps_per_pixel, height=threshold)
         peaks = np.unique(peaks)
 
+        peak_handles = []
         for peak_index in peaks:
             x_peak = np.arange(
                 peak_index - peak_search_width,
@@ -509,25 +509,29 @@ def plot_sensor_population(
             )
             cut_above_256 = np.where(x_peak >= 256)[0]
             x_peak = np.delete(x_peak, cut_above_256)
-            plt.plot(
-                0,
-                0,
-                "o--",
-                # markersize=8,
-                color="rebeccapurple",
-                label=f"Peak at {peak_index}, "
-                f"Rate: {rates[peak_index]/1000:.0f} kHz",
+            peak_handles.append(
+                Line2D(
+                    [],
+                    [],
+                    marker="o",
+                    linestyle="--",
+                    color=data_line.get_color(),
+                    # markersize=8,
+                    label=f"Peak at {peak_index}, "
+                    f"Rate: {rates[peak_index]/1000:.0f} kHz",
+                )
             )
-    plt.legend(loc="best")
+        plt.legend(handles=peak_handles, loc="best")
+    else:
+        plt.legend(loc="best")
 
     # Plotting photons
-    plt.rcParams.update({"font.size": 30})
     fig_photons = plt.figure(figsize=(16, 10))
     fig_photons.subplots_adjust(top=0.94, right=0.93)
     if y_scale == "log":
         plt.yscale("log")
 
-    plt.plot(timestamps_per_pixel, "o-", color="rebeccapurple")
+    (data_line,) = plt.plot(timestamps_per_pixel, "o-")
     plt.xlabel("Pixel number (-)")
     plt.ylabel("Photons (-)")
     # Find and fit peaks if look_for_peaks is True
@@ -537,6 +541,7 @@ def plot_sensor_population(
         peaks, _ = find_peaks(timestamps_per_pixel, height=threshold)
         peaks = np.unique(peaks)
 
+        peak_handles = []
         for peak_index in peaks:
             x_peak = np.arange(
                 peak_index - peak_search_width,
@@ -544,16 +549,21 @@ def plot_sensor_population(
             )
             cut_above_256 = np.where(x_peak >= 256)[0]
             x_peak = np.delete(x_peak, cut_above_256)
-            plt.plot(
-                0,
-                0,
-                "o--",
-                # markersize=8,
-                color="rebeccapurple",
-                label=f"Peak at {peak_index}, "
-                f"Rate: {rates[peak_index]/1000:.0f} kHz",
+            peak_handles.append(
+                Line2D(
+                    [],
+                    [],
+                    marker="o",
+                    linestyle="--",
+                    color=data_line.get_color(),
+                    # markersize=8,
+                    label=f"Peak at {peak_index}, "
+                    f"Rate: {rates[peak_index]/1000:.0f} kHz",
+                )
             )
-    plt.legend(loc="best")
+        plt.legend(handles=peak_handles, loc="best")
+    else:
+        plt.legend(loc="best")
 
     # Save the figure
     try:
@@ -589,6 +599,8 @@ def plot_sensor_population(
             pickle.dump(fig_photons, open(f"{plot_name}_photons.pickle", "wb"))
 
     os.chdir("../..")
+
+    return fig_rates, fig_photons
 
 
 # def plot_sensor_population_rates(
@@ -785,7 +797,7 @@ def plot_sensor_population_full_sensor(
     y_scale: str = "linear",
     style: str = "-o",
     apply_hot_pixel_mask: bool = True,
-    color: str = "salmon",
+    color: str | None = None,
     find_peaks: bool = False,
     peak_threshold: int = 10,
     pickle_fig: bool = False,
@@ -947,7 +959,6 @@ def plot_sensor_population_full_sensor(
 
     print("\n> > > Plotting < < <\n")
 
-    plt.rcParams.update({"font.size": 30})
     fig = plt.figure(figsize=(16, 10))
     fig.subplots_adjust(top=0.94, right=0.93)
     if y_scale == "log":

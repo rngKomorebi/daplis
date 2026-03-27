@@ -1684,7 +1684,7 @@ def collect_and_plot_timestamp_differences(
     range_right: int = 10e3,
     multiplier: int = 1,
     same_y: bool = False,
-    color: str = "rebeccapurple",
+    color: str | None = None,
     correct_pix_address: bool = False,
     pickle_figure: bool = False,
     file_offset_abs: str = None,
@@ -1781,7 +1781,6 @@ def collect_and_plot_timestamp_differences(
         "\n> > > Plotting timestamps differences as a grid of histograms < < <"
     )
 
-    plt.rcParams.update({"font.size": 30})
     # In the case two lists given - the left and right peaks - _flatten
     # into a single list
 
@@ -1978,7 +1977,7 @@ def collect_and_plot_timestamp_differences_full_sensor(
     range_right: int = 10e3,
     multiplier: int = 1,
     same_y: bool = False,
-    color: str = "rebeccapurple",
+    color: str | None = None,
 ):
     """Collect and plot timestamp differences from a '.feather' file.
 
@@ -2090,7 +2089,6 @@ def collect_and_plot_timestamp_differences_full_sensor(
     print(
         "\n> > > Plotting timestamps differences as a grid of histograms < < <"
     )
-    plt.rcParams.update({"font.size": 30})
     # Prepare the grid for the plots based on the number of pixels
     # given
     if len(pixels) > 2:
