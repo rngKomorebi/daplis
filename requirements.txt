@@ -1,5 +1,5 @@
 lmfit==1.2.2
-matplotlib==3.10.8
+matplotlib>=3.9.0
 numpy==1.25.2
 pandas==2.0.3
 pyarrow==17.0.0
