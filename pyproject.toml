@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "daplis"
-version = "1.4.2"
+version = "1.4.3"
 description = "Data Analysis Package for LInoSpad"
 authors = [{ name = "Sergei Kulkov", email = "sergei.kulkov23@gmail.com" }]
 license = { text = "MIT" }
@@ -22,7 +22,7 @@ keywords = ["timestamp", "analysis", "LinoSPAD2"]
 
 dependencies = [
     "lmfit>=0.9.1",
-    "matplotlib>=3.5.0",
+    "matplotlib>=3.9.0",
     "numpy>=1.22.4",
     "pandas>=1.4.0",
     "pyarrow>=17.0.0",

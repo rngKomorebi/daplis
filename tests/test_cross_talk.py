@@ -130,7 +130,7 @@ class TestCrossTalkFunctions(unittest.TestCase):
             )
         )
 
-    def test_unpickle_cross_talk(self):
+    def test_zero_to_cross_talk_unpickle(self):
         # Test that unpickle_cross_talk returns valid arrays
         work_dir = os.path.dirname(os.path.realpath(__file__)) + "/.."
         path = os.path.join(work_dir, self.partial_path)

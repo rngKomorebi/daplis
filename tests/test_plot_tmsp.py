@@ -52,7 +52,7 @@ class TestPlotScripts(unittest.TestCase):
         )
         self.assertTrue(
             os.path.isfile(
-                "results/sensor_population/test_data_2212b-test_data_2212b.png"
+                "results/sensor_population/test_data_2212b-test_data_2212b_rates.png"
             )
         )
 
