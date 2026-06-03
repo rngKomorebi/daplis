@@ -3,9 +3,11 @@ import shutil
 import unittest
 
 import numpy as np
+from pyarrow import feather as ft
 
 from daplis.functions.delta_t import (
     calculate_and_save_timestamp_differences,
+    calculate_and_save_timestamp_differences_1v1,
     collect_and_plot_timestamp_differences,
     unpickle_plot,
 )
@@ -13,7 +15,7 @@ from daplis.functions.fits import (
     fit_with_gaussian,
     fit_with_gaussian_all,
     fit_with_gaussian_combine,
-    fit_with_gaussian_fancy,
+    fit_with_gaussian_lmfit,
     unpickle_fit,
 )
 
@@ -197,7 +199,7 @@ class TestDeltasFull(unittest.TestCase):
         )
 
         self.assertTrue(
-            os.path.isfile("results/fits/test_pixels_[82],[116]_fit.png")
+            os.path.isfile("results/fits/test_pixels_82-82,116-116_fit.png")
         )
 
     def test_d_fit_with_gaussian_combine_pickle_positive(self):
@@ -221,7 +223,7 @@ class TestDeltasFull(unittest.TestCase):
         )
 
         self.assertTrue(
-            os.path.isfile("results/fits/test_pixels_[82],[116]_fit.pkl")
+            os.path.isfile("results/fits/test_pixels_82-82,116-116_fit.pkl")
         )
 
     def test_d_fit_with_gaussian_all_positive(self):
@@ -251,7 +253,7 @@ class TestDeltasFull(unittest.TestCase):
             )
         )
 
-    def test_d_fit_with_gaussian_fancy_positive(self):
+    def test_d_fit_with_gaussian_lmfit_positive(self):
         # Test with valid input
         pixels = [82, 116]
 
@@ -262,7 +264,7 @@ class TestDeltasFull(unittest.TestCase):
         ft_file = r"test.feather"
 
         # Call the function
-        fit_with_gaussian_fancy(
+        fit_with_gaussian_lmfit(
             path,
             pixels=pixels,
             ft_file=ft_file,
@@ -335,7 +337,7 @@ class TestDeltasFull(unittest.TestCase):
             )
         )
 
-    def test_d_fit_with_gaussian_fancy_pickle_positive(self):
+    def test_d_fit_with_gaussian_lmfit_pickle_positive(self):
         # Test with valid input
         pixels = [82, 116]
 
@@ -346,7 +348,7 @@ class TestDeltasFull(unittest.TestCase):
         ft_file = r"test.feather"
 
         # Call the function
-        fit_with_gaussian_fancy(
+        fit_with_gaussian_lmfit(
             path,
             pixels=pixels,
             ft_file=ft_file,
@@ -391,6 +393,118 @@ class TestDeltasFull(unittest.TestCase):
         os.chdir(r"{}".format(os.path.dirname(os.path.realpath(__file__))))
         shutil.rmtree("test_data/delta_ts_data")
         shutil.rmtree("test_data/results")
+
+
+class TestDeltasOneVOne(unittest.TestCase):
+    def setUp(self):
+        self.partial_path = "tests/test_data"
+        self.pixels = [
+            [66, 67],
+            [170, 171],
+        ]
+        self.daughterboard_number = "NL11"
+        self.motherboard_number = "#33"
+        self.firmware_version = "2212b"
+        self.timestamps = 300
+        self.delta_window = 20e3
+        self.rewrite = True
+        self.cycle_length = 4e9
+        self.include_offset = False
+
+    def _path(self):
+        work_dir = os.path.dirname(os.path.realpath(__file__)) + "/.."
+        return os.path.join(work_dir, self.partial_path)
+
+    def test_a_1v1_creates_feather(self):
+        calculate_and_save_timestamp_differences_1v1(
+            self._path(),
+            self.pixels,
+            self.rewrite,
+            self.daughterboard_number,
+            self.motherboard_number,
+            self.firmware_version,
+            self.timestamps,
+            self.delta_window,
+            self.cycle_length,
+            include_offset=self.include_offset,
+        )
+        feather_file = os.path.join(
+            self._path(),
+            "delta_ts_data",
+            "test_data_2212b-test_data_2212b.feather",
+        )
+        self.assertTrue(os.path.isfile(feather_file))
+
+    def test_b_1v1_feather_columns_match_pairs(self):
+        # Columns must be exactly the requested diagonal pairs, not a cross product
+        calculate_and_save_timestamp_differences_1v1(
+            self._path(),
+            self.pixels,
+            self.rewrite,
+            self.daughterboard_number,
+            self.motherboard_number,
+            self.firmware_version,
+            self.timestamps,
+            self.delta_window,
+            self.cycle_length,
+            include_offset=self.include_offset,
+        )
+        feather_file = os.path.join(
+            self._path(),
+            "delta_ts_data",
+            "test_data_2212b-test_data_2212b.feather",
+        )
+        data = ft.read_feather(feather_file)
+        self.assertEqual(set(data.columns), {"66,170", "67,171"})
+
+    def test_c_1v1_wrong_rewrite_type_raises(self):
+        with self.assertRaises(TypeError):
+            calculate_and_save_timestamp_differences_1v1(
+                self._path(),
+                self.pixels,
+                "not_a_bool",
+                self.daughterboard_number,
+                self.motherboard_number,
+                self.firmware_version,
+                self.timestamps,
+                self.delta_window,
+            )
+
+    def test_c_1v1_wrong_pixels_type_raises(self):
+        with self.assertRaises(TypeError):
+            calculate_and_save_timestamp_differences_1v1(
+                self._path(),
+                "not_a_list",
+                self.rewrite,
+                self.daughterboard_number,
+                self.motherboard_number,
+                self.firmware_version,
+                self.timestamps,
+                self.delta_window,
+            )
+
+    def test_d_1v1_unequal_pixel_lists_raise(self):
+        # This is the exact bug that went undetected: unequal-length lists
+        mismatched = [[66, 67, 68], [170, 171]]
+        with self.assertRaises(ValueError):
+            calculate_and_save_timestamp_differences_1v1(
+                self._path(),
+                mismatched,
+                self.rewrite,
+                self.daughterboard_number,
+                self.motherboard_number,
+                self.firmware_version,
+                self.timestamps,
+                self.delta_window,
+                self.cycle_length,
+                include_offset=self.include_offset,
+            )
+
+    @classmethod
+    def tearDownClass(cls):
+        os.chdir(os.path.dirname(os.path.realpath(__file__)))
+        if os.path.isdir("test_data/delta_ts_data"):
+            shutil.rmtree("test_data/delta_ts_data")
 
 
 if __name__ == "__main__":
