@@ -30,6 +30,52 @@ class TestCrossTalkFunctions(unittest.TestCase):
         self.app_mask = True
         self.include_offset = False
 
+    def _path(self):
+        work_dir = os.path.dirname(os.path.realpath(__file__)) + "/.."
+        return os.path.join(work_dir, self.partial_path)
+
+    def test_collect_dcr_by_file_wrong_firmware_raises(self):
+        with self.assertRaises(TypeError):
+            collect_dcr_by_file(
+                self._path(),
+                self.daughterboard_number,
+                self.motherboard_number,
+                firmware_version=12345,
+                timestamps=self.timestamps,
+            )
+
+    def test_collect_dcr_by_file_wrong_daughterboard_raises(self):
+        with self.assertRaises(TypeError):
+            collect_dcr_by_file(
+                self._path(),
+                daughterboard_number=99,
+                motherboard_number=self.motherboard_number,
+                firmware_version=self.firmware_version,
+                timestamps=self.timestamps,
+            )
+
+    def test_collect_dcr_by_file_wrong_motherboard_raises(self):
+        with self.assertRaises(TypeError):
+            collect_dcr_by_file(
+                self._path(),
+                self.daughterboard_number,
+                motherboard_number=99,
+                firmware_version=self.firmware_version,
+                timestamps=self.timestamps,
+            )
+
+    def test_zero_to_cross_talk_collect_wrong_rewrite_raises(self):
+        with self.assertRaises(TypeError):
+            zero_to_cross_talk_collect(
+                self._path(),
+                self.pixels,
+                rewrite="yes",
+                daughterboard_number=self.daughterboard_number,
+                motherboard_number=self.motherboard_number,
+                firmware_version=self.firmware_version,
+                timestamps=self.timestamps,
+            )
+
     def test_collect_dcr_by_file_positive(self):
         # Test positive case for deltas_save function
         work_dir = os.path.dirname(os.path.realpath(__file__)) + "/.."
@@ -131,14 +177,16 @@ class TestCrossTalkFunctions(unittest.TestCase):
         )
 
     def test_zero_to_cross_talk_unpickle(self):
-        # Test that unpickle_cross_talk returns valid arrays
+        # Test that unpickle_cross_talk returns three ndarrays of equal length
         work_dir = os.path.dirname(os.path.realpath(__file__)) + "/.."
         path = os.path.join(work_dir, self.partial_path)
         pkl_file = os.path.join(path, "ct_vs_distance/Average_cross-talk.pkl")
         x, y, yerr = unpickle_cross_talk(pkl_file)
-        self.assertIsNotNone(x)
-        self.assertIsNotNone(y)
-        self.assertIsNotNone(yerr)
+        self.assertIsInstance(x, np.ndarray)
+        self.assertIsInstance(y, np.ndarray)
+        self.assertIsInstance(yerr, np.ndarray)
+        self.assertEqual(len(x), len(y))
+        self.assertEqual(len(y), len(yerr))
 
     def tearDownClass():
         # Clean up after tests

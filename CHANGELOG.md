@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.4] - 2026-06-03
+
+New tests, fixing tests, cleaning up, fixing 1v1 functions
+
+### Added
+
+- New functions in fits module, fit_with_gaussian_lmfit_with_stats. Fits the histogram of coincidences with a Gaussian function using lmfit but also returns, chi2red, residuals for checking fit quality.
+
+- New tests for delta_t, sensor_plot, cross_talk modules, covering the functions checks for which were missing, updating old ones based on the new functionality.
+
+### Changed
+
+- In the unpack module, removed the old version of the unpacking function, rewrote the unpack_binary_data_with_absolute_timestamps function using the same new logic as for the normal function.
+
+- the plot_sensor_population_full_sensor function in the sensor_plot module now saves two figures: one with the number of photons, one with the photon rate. Added functionality for looking for peaks above threshold.
+
+- How 1v1 (calc_diff, delta_t) functions operate: they now use the same logic as normal functions, also updated so that they work with new unpack/calibrate routine.
+
+- fit_with_gaussian function to handle unsuccessful fits.
+
+- fit_with_gaussian_combine now works more reliably and saves the plot in a cleaner format.
+
+- Updated the offset calibration for B7d, #28, 2212b combination.
+
 ## [1.4.3] - 2026-04-01
 
 Fixed tests, dropped python-3.8 support
