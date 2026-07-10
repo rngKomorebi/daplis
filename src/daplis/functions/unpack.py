@@ -142,9 +142,12 @@ def unpack_binary_data_with_absolute_timestamps(
 
     Notes
     -----
-    Each acquisition cycle is preceded by two 32-bit words that together
-    encode a 56-bit absolute timestamp from the 400 MHz clock. The low word
-    occupies bits 0-27 and the high word bits 28-55.
+    Each acquisition cycle is preceded by two full 32-bit words that
+    together encode a 64-bit absolute timestamp: first word = counter
+    bits 31:0, second word = counter bits 63:32 (verified against the
+    firmware, tdc_array.vhd). The counter runs at 133.333 MHz, so one
+    tick is 7.5 ns. It is free-running from FPGA configuration and is
+    latched at the start of each acquisition window.
     """
     # Parameter type check
     if not isinstance(daughterboard_number, str):
@@ -160,11 +163,13 @@ def unpack_binary_data_with_absolute_timestamps(
     cycle_words = timestamps * 65 + 2
     cycles = len(raw_data) // cycle_words
 
-    # Extract absolute timestamps: first 2 words of every cycle
+    # Extract absolute timestamps: first 2 words of every cycle.
+    # Both words are full 32 bits of the 64-bit counter (low word first);
+    # masking them to 28 bits like the photon words corrupts the value.
     cycle_starts = np.arange(cycles, dtype=np.int64) * cycle_words
-    abs_low = (raw_data[cycle_starts] & 0xFFFFFFF).astype(np.uint64)
-    abs_high = (raw_data[cycle_starts + 1] & 0xFFFFFFF).astype(np.uint64)
-    absolute_timestamps = (abs_high << 28) | abs_low
+    abs_low = raw_data[cycle_starts].astype(np.uint64)
+    abs_high = raw_data[cycle_starts + 1].astype(np.uint64)
+    absolute_timestamps = (abs_high << np.uint64(32)) | abs_low
 
     # Remove the absolute-timestamp words, leaving only TDC data
     abs_indices = np.sort(np.concatenate([cycle_starts, cycle_starts + 1]))
