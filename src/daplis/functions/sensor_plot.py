@@ -35,13 +35,14 @@ import sys
 from typing import List
 
 import numpy as np
-from daplis.functions import unpack as f_up
-from daplis.functions import utils
 from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
 from scipy.optimize import curve_fit
 from scipy.signal import find_peaks
 from tqdm import tqdm
+
+from daplis.functions import unpack as f_up
+from daplis.functions import utils
 
 
 def collect_data_and_apply_mask(
@@ -113,6 +114,7 @@ def collect_data_and_apply_mask(
         sys.exit()
 
     timestamps_per_pixel = np.zeros(256)
+    max_timestamp = 0
 
     # In the case a single file is passed, make a list out of it
     if isinstance(files, str):
@@ -135,10 +137,9 @@ def collect_data_and_apply_mask(
                     motherboard_number,
                     firmware_version,
                     timestamps,
-                    include_offset=False,
-                    apply_calibration=False,
                 )
             )
+        max_timestamp = max(max_timestamp, np.max(data_timestamps))
         for i in range(256):
             # tdc, pix = np.argwhere(pix_coor == i)[0]
             # ind = np.where(data[tdc].T[0] == pix)[0]
@@ -168,9 +169,7 @@ def collect_data_and_apply_mask(
     #         number_of_cycles = len(np.where(data[0].T[0] == -2)[0])
     if calculate_rates:
         if acq_window_length is None:
-            acq_window_length = (
-                np.max(data_timestamps * 2500 / 140).astype(int) * 1e-12
-            )  # transform to seconds
+            acq_window_length = int(max_timestamp * 2500 / 140) * 1e-12
         if number_of_cycles is None:
             number_of_cycles = len(data_timestamps.flatten()) / 64 / timestamps
 
@@ -441,7 +440,6 @@ def plot_sensor_population(
 
     os.chdir(path)
 
-    # files = glob.glob("*.dat*")
     files = glob.glob("*.dat*")
     files.sort(key=os.path.getmtime)
 
@@ -450,8 +448,6 @@ def plot_sensor_population(
         plot_name = files[:-4]
     else:
         plot_name = files[0][:-4] + "-" + files[-1][:-4]
-
-    # valid_per_pixel = np.zeros(256)
 
     print(
         "\n> > > Collecting data for sensor population plot,"
@@ -480,15 +476,18 @@ def plot_sensor_population(
     fig_rates.subplots_adjust(top=0.94, right=0.93)
     if y_scale == "log":
         plt.yscale("log")
-    if np.max(rates) > 1e3:
-        (data_line,) = plt.plot(rates / 1e3, "o-")
-        plt.ylabel("Photon rate (kHz)")
-    elif np.max(rates) > 1e6:
+    if np.max(rates) > 1e6:
         (data_line,) = plt.plot(rates / 1e6, "o-")
         plt.ylabel("Photon rate (MHz)")
+        rate_scale, rate_unit = 1e6, "MHz"
+    elif np.max(rates) > 1e3:
+        (data_line,) = plt.plot(rates / 1e3, "o-")
+        plt.ylabel("Photon rate (kHz)")
+        rate_scale, rate_unit = 1e3, "kHz"
     else:
         (data_line,) = plt.plot(rates, "o-")
         plt.ylabel("Photon rate (Hz)")
+        rate_scale, rate_unit = 1, "Hz"
     plt.xlabel("Pixel number (-)")
 
     # Find and fit peaks if look_for_peaks is True
@@ -513,9 +512,8 @@ def plot_sensor_population(
                     marker="o",
                     linestyle="--",
                     color=data_line.get_color(),
-                    # markersize=8,
                     label=f"Peak at {peak_index}, "
-                    f"Rate: {rates[peak_index]/1000:.0f} kHz",
+                    f"Rate: {rates[peak_index]/rate_scale:.2f} {rate_unit}",
                 )
             )
         plt.legend(handles=peak_handles, loc="best")
@@ -553,9 +551,8 @@ def plot_sensor_population(
                     marker="o",
                     linestyle="--",
                     color=data_line.get_color(),
-                    # markersize=8,
                     label=f"Peak at {peak_index}, "
-                    f"Rate: {rates[peak_index]/1000:.0f} kHz",
+                    f"Rate: {rates[peak_index]/rate_scale:.2f} {rate_unit}",
                 )
             )
         plt.legend(handles=peak_handles, loc="best")
@@ -568,13 +565,13 @@ def plot_sensor_population(
     except FileNotFoundError:
         os.makedirs("results/sensor_population")
         os.chdir("results/sensor_population")
-    # fig.tight_layout()
     if single_file:
         fig_rates.savefig(f"{plot_name}_rates_single_file.png")
         fig_photons.savefig(f"{plot_name}_photons_single_file.png")
+        where_saved = os.getcwd()
         print(
-            f"> > > The plot is saved as '{plot_name}.png'"
-            "in {os.getcwd()} < < <"
+            f"> > > The plot is saved as '{plot_name}.png' "
+            f"in {where_saved} < < <"
         )
         if pickle_fig:
             pickle.dump(
@@ -587,9 +584,10 @@ def plot_sensor_population(
     else:
         fig_rates.savefig(f"{plot_name}_rates.png")
         fig_photons.savefig(f"{plot_name}_photons.png")
+        where_saved = os.getcwd()
         print(
             f"> > > The plot is saved as '{plot_name}.png' "
-            f"in {os.getcwd()} < < <"
+            f"in {where_saved} < < <"
         )
         if pickle_fig:
             pickle.dump(fig_rates, open(f"{plot_name}_rates.pickle", "wb"))
@@ -792,10 +790,8 @@ def plot_sensor_population_full_sensor(
     firmware_version: str,
     timestamps: int = 512,
     y_scale: str = "linear",
-    style: str = "-o",
     apply_hot_pixel_mask: bool = True,
-    color: str | None = None,
-    look_for_peaks: bool = False,
+    look_for_peaks: bool = True,
     peak_threshold: int = 10,
     pickle_fig: bool = False,
     single_file: bool = False,
@@ -829,16 +825,11 @@ def plot_sensor_population_full_sensor(
     y_scale : str, optional
         Scale for the y-axis of the plot. Use "log" for logarithmic.
         The default is "linear".
-    style : str, optional
-        Style of the plot. The default is "-o".
     apply_hot_pixel_mask : bool, optional
         Switch for applying the mask on warm/hot pixels. The default is
         True.
-    color : str, optional
-        Color for the plot. The default is 'salmon'.
     look_for_peaks : bool, optional
-        Switch for finding the highest peaks and fitting them with a
-        Gaussian to provide their position. The default is False.
+        Switch for finding the highest peaks. The default is True.
     peak_threshold : int, optional
         Threshold multiplier for setting the threshold for finding peaks.
         The default is 10.
@@ -885,13 +876,10 @@ def plot_sensor_population_full_sensor(
     if not isinstance(motherboard_number2, str):
         raise TypeError("'motherboard_number2' should be a string")
 
-    valid_per_pixel1 = np.zeros(256)
-    valid_per_pixel2 = np.zeros(256)
-
     # Get the two folders with data from both FPGAs/sensor halves
     os.chdir(path)
-    path1 = glob.glob(f"*{motherboard_number1}*")[0]
-    path2 = glob.glob(f"*{motherboard_number2}*")[0]
+    path1 = os.path.abspath(glob.glob(f"*{motherboard_number1}*")[0])
+    path2 = os.path.abspath(glob.glob(f"*{motherboard_number2}*")[0])
 
     # First motherboard / half of the sensor
     os.chdir(path1)
@@ -901,7 +889,9 @@ def plot_sensor_population_full_sensor(
 
     if single_file:
         files1 = files1[0]
-    plot_name1 = files1[0][:-4] + "-"
+        plot_name1 = files1[:-4] + "-"
+    else:
+        plot_name1 = files1[0][:-4] + "-"
 
     print(
         "\n> > > Collecting data for sensor population plot,"
@@ -919,20 +909,23 @@ def plot_sensor_population_full_sensor(
         calculate_rates=True,
     )
 
-    os.chdir("..")
-
     # Second motherboard / half of the sensor
     os.chdir(path2)
+
     files2 = glob.glob("*.dat*")
     files2.sort(key=os.path.getmtime)
+
     if single_file:
         files2 = files2[0]
-    plot_name2 = files2[-1][:-4]
+        plot_name2 = files2[:-4]
+    else:
+        plot_name2 = files2[-1][:-4]
 
     print(
         "\n> > > Collecting data for sensor population plot,"
         f"Working in {path2} < < <\n"
     )
+
     valid_per_pixel2, rates2 = collect_data_and_apply_mask(
         files2,
         daughterboard_number,
@@ -969,14 +962,17 @@ def plot_sensor_population_full_sensor(
     if y_scale == "log":
         plt.yscale("log")
     if np.max(rates) > 1e6:
-        (data_line,) = plt.plot(rates / 1e6, style, color=color)
+        (data_line,) = plt.plot(rates / 1e6, "o-")
         plt.ylabel("Photon rate (MHz)")
+        rate_scale, rate_unit = 1e6, "MHz"
     elif np.max(rates) > 1e3:
-        (data_line,) = plt.plot(rates / 1e3, style, color=color)
+        (data_line,) = plt.plot(rates / 1e3, "o-")
         plt.ylabel("Photon rate (kHz)")
+        rate_scale, rate_unit = 1e3, "kHz"
     else:
-        (data_line,) = plt.plot(rates, style, color=color)
+        (data_line,) = plt.plot(rates, "o-")
         plt.ylabel("Photon rate (Hz)")
+        rate_scale, rate_unit = 1, "Hz"
     plt.xlabel("Pixel number (-)")
 
     if look_for_peaks:
@@ -994,7 +990,7 @@ def plot_sensor_population_full_sensor(
                     linestyle="--",
                     color=data_line.get_color(),
                     label=f"Peak at {peak_index}, "
-                    f"Rate: {rates[peak_index]/1000:.0f} kHz",
+                    f"Rate: {rates[peak_index]/rate_scale:.2f} {rate_unit}",
                 )
             )
         plt.legend(handles=peak_handles, loc="best")
@@ -1007,7 +1003,7 @@ def plot_sensor_population_full_sensor(
     if y_scale == "log":
         plt.yscale("log")
 
-    (data_line,) = plt.plot(valid_per_pixel, style, color=color)
+    (data_line,) = plt.plot(valid_per_pixel, "o-")
     plt.xlabel("Pixel number (-)")
     plt.ylabel("Photons (-)")
 
@@ -1026,7 +1022,7 @@ def plot_sensor_population_full_sensor(
                     linestyle="--",
                     color=data_line.get_color(),
                     label=f"Peak at {peak_index}, "
-                    f"Rate: {rates[peak_index]/1000:.0f} kHz",
+                    f"Rate: {rates[peak_index]/rate_scale:.2f} {rate_unit}",
                 )
             )
         plt.legend(handles=peak_handles, loc="best")
@@ -1040,15 +1036,37 @@ def plot_sensor_population_full_sensor(
     except FileNotFoundError:
         os.makedirs("results/sensor_population")
         os.chdir("results/sensor_population")
-    fig_rates.savefig(f"{plot_name}_rates.png")
-    fig_photons.savefig(f"{plot_name}_photons.png")
-    print(
-        f"> > > The plots are saved as '{plot_name}_rates.png' and "
-        f"'{plot_name}_photons.png' in {os.getcwd()} < < <"
-    )
-    if pickle_fig:
-        pickle.dump(fig_rates, open(f"{plot_name}_rates.pickle", "wb"))
-        pickle.dump(fig_photons, open(f"{plot_name}_photons.pickle", "wb"))
+
+    if single_file:
+        fig_rates.savefig(f"{plot_name}_rates_single_file.png")
+        fig_photons.savefig(f"{plot_name}_photons_single_file.png")
+        where_saved = os.getcwd()
+        print(
+            f"> > > The plots are saved as '{plot_name}_rates_single_file.png'"
+            f" and '{plot_name}_photons_single_file.png' in {where_saved} < < <"
+        )
+        if pickle_fig:
+            pickle.dump(
+                fig_rates,
+                open(f"{plot_name}_rates_single_file.pickle", "wb"),
+            )
+            pickle.dump(
+                fig_photons,
+                open(f"{plot_name}_photons_single_file.pickle", "wb"),
+            )
+    else:
+        fig_rates.savefig(f"{plot_name}_rates.png")
+        fig_photons.savefig(f"{plot_name}_photons.png")
+        where_saved = os.getcwd()
+        print(
+            f"> > > The plots are saved as '{plot_name}_rates.png' and "
+            f"'{plot_name}_photons.png' in {where_saved} < < <"
+        )
+        if pickle_fig:
+            pickle.dump(fig_rates, open(f"{plot_name}_rates.pickle", "wb"))
+            pickle.dump(fig_photons, open(f"{plot_name}_photons.pickle", "wb"))
+
+    os.chdir("../..")
 
     return fig_rates, fig_photons
 

@@ -165,7 +165,7 @@ def gaussian(x, amp, mu, sigma, bkg):
     return amp * np.exp(-((x - mu) ** 2) / (2 * sigma**2)) + bkg
 
 
-def fit_gaussian(x, y):
+def fit_gaussian(x, y, p0=None, bounds=None):
     """Fit Gaussian function to data.
 
     Parameters
@@ -174,6 +174,15 @@ def fit_gaussian(x, y):
         The x-axis data.
     y : array-like
         The y-axis data.
+    p0 : list, optional
+        Initial guess [amp, mu, sigma, bkg]. If None (default), guesses
+        are derived from the data as before: the peak position comes
+        from the single highest bin, which is unreliable for low-count
+        histograms, so callers with better knowledge should pass an
+        explicit seed.
+    bounds : 2-tuple of array-like, optional
+        (lower, upper) parameter bounds passed to curve_fit. If None
+        (default), the fit is unbounded, as before.
 
     Returns
     -------
@@ -187,20 +196,20 @@ def fit_gaussian(x, y):
             the variance of the parameter estimates.
 
     """
-    # Initial guess for the parameters
-    amp_guess = np.max(y)
-    mu_guess = x[np.argmax(y)]
-    # As std sometimes gives nonsense, 150 ps is added as balancing
-    sigma_guess = min(np.std(x), 150)
-    bkg_guess = np.median(y)
+    if p0 is None:
+        # Initial guess for the parameters
+        amp_guess = np.max(y)
+        mu_guess = x[np.argmax(y)]
+        # As std sometimes gives nonsense, 150 ps is added as balancing
+        sigma_guess = min(np.std(x), 150)
+        bkg_guess = np.median(y)
+        p0 = [amp_guess, mu_guess, sigma_guess, bkg_guess]
 
     # Perform the curve fitting
-    popt, pcov = curve_fit(
-        gaussian,
-        x,
-        y,
-        p0=[amp_guess, mu_guess, sigma_guess, bkg_guess],
-    )
+    if bounds is None:
+        popt, pcov = curve_fit(gaussian, x, y, p0=p0)
+    else:
+        popt, pcov = curve_fit(gaussian, x, y, p0=p0, bounds=bounds)
 
     return popt, pcov
 

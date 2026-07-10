@@ -1135,9 +1135,8 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
     apply_mask: bool = True,
     include_offset: bool = False,
     apply_calibration: bool = True,
-    absolute_timestamps: bool = False,
-):  # TODO add option for collecting from more than just two pixels
-    # TODO use pixel handling function for modularity (if possible)
+    epoch_offset_ps: float = None,
+):
     """Calculate and save timestamp differences into '.feather' file.
 
     Unpacks data into a dictionary, calculates timestamp differences for
@@ -1148,6 +1147,12 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
     where the signal is above that value. Useful for when the signal
     is above zero right from the start of data collecting.
 
+    Absolute timestamps are always required. Each data file must have been
+    collected with 'acqTimestamps' enabled in the LinoSPAD2 GUI (adds a
+    2-word header per acquisition cycle). The per-cycle clock offset between
+    the two boards is computed from these timestamps and subtracted from
+    every photon timestamp difference before saving.
+
     Parameters
     ----------
     path : str
@@ -1156,9 +1161,8 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
     pixels : list
         List of two pixels, one from each sensor half.
     rewrite : bool
-        switch for rewriting the plot if it already exists. used as a
-        safeguard to avoid unwanted overwriting of the previous results.
         Switch for rewriting the '.feather' file if it already exists.
+        Used as a safeguard to avoid unwanted overwriting.
     daughterboard_number : str
         LinoSPAD2 daughterboard number.
     motherboard_number1 : str
@@ -1183,14 +1187,31 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
     apply_mask : bool, optional
         Switch for applying the mask for hot pixels. The default is True.
     include_offset : bool, optional
-        Switch for applying offset calibration. The default is True.
+        Switch for applying offset calibration. The default is False.
     apply_calibration : bool, optional
         Switch for applying TDC and offset calibration. If set to 'True'
         while include_offset is set to 'False', only the TDC calibration is
         applied. The default is True.
-    absolute_timestamps : bool, optional
-        Switch for unpacking data that were collected together with
-        absolute timestamps. The default is False.
+    epoch_offset_ps : float, optional
+        Global time offset between the two boards' cycle epochs, in ps,
+        subtracted from every timestamp difference. With both boards
+        locked to a shared external clock but without a shared trigger
+        (CLK_IN/J11 only), each board's cycle epoch is its own free-running
+        divider edge, so the offset is an arbitrary constant within one
+        cycle period and the coincidence peak sits far outside the
+        delta_window around zero. If None (default), the offset is
+        estimated automatically from the first file pair by locating the
+        coincidence peak over the full difference range; the estimate is
+        printed and returned. Pass 0 to disable (boards sharing a hardware
+        trigger via J7 -> J10), or a known value to reuse a previous
+        estimate.
+
+    Returns
+    -------
+    float or None
+        The epoch offset (ps) that was subtracted from the differences:
+        the auto-estimated value, the value passed in, or None if
+        estimation failed.
 
     Raises
     ------
@@ -1213,7 +1234,7 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
         )
     if isinstance(firmware_version, str) is False:
         raise TypeError(
-            "'firmware_version' should be string, '2212s', '2212b' or" "'2208'"
+            "'firmware_version' should be string, '2212s', '2212b' or '2208'"
         )
     if isinstance(rewrite, bool) is False:
         raise TypeError("'rewrite' should be boolean")
@@ -1230,7 +1251,7 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
             f"Data from {motherboard_number1} not found"
         ) from exc
     files_all1 = glob.glob("*.dat*")
-    files_all1.sort(key=lambda x: os.path.getmtime(x))
+    files_all1.sort(key=os.path.getmtime)
     out_file_name = files_all1[0][:-4]
     os.chdir("..")
 
@@ -1242,7 +1263,7 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
             f"Data from {motherboard_number2} not found"
         ) from exc
     files_all2 = glob.glob("*.dat*")
-    files_all2.sort(key=lambda x: os.path.getmtime(x))
+    files_all2.sort(key=os.path.getmtime)
     out_file_name = out_file_name + "-" + files_all2[-1][:-4]
     os.chdir("..")
 
@@ -1256,228 +1277,358 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
         print("\nFirmware version is not recognized.")
         sys.exit()
 
-    # Check if '.feather' file with timestamps differences already
-    # exists
+    # Check if '.feather' file with timestamps differences already exists
     feather_file = os.path.join(
         path, "delta_ts_data", f"{out_file_name}.feather"
     )
-
     utils.file_rewrite_handling(feather_file, rewrite)
 
     # TODO add check for masked/noisy pixels
-    # if apply_mask is True:
-    #     path_to_back = os.getcwd()
-    #     path_to_mask = os.path.realpath(__file__) + "/../.." + "/params/masks"
-    #     os.chdir(path_to_mask)
-    #     file_mask1 = glob.glob("*{}_{}*".format(daughterboard_number, motherboard_number1))[0]
-    #     mask1 = np.genfromtxt(file_mask1).astype(int)
-    #     file_mask2 = glob.glob("*{}_{}*".format(daughterboard_number, motherboard_number2))[0]
-    #     mask2 = np.genfromtxt(file_mask2).astype(int)
-    #     os.chdir(path_to_back)
 
-    abs_tmsp_list1 = []
-    abs_tmsp_list2 = []
-    for i in tqdm(range(ceil(len(files_all1))), desc="Collecting data"):
-        deltas_all = {}
+    # Normalize pixel input: accept [p1, p2] or [[p1a, p1b], [p2a, p2b]]
+    if isinstance(pixels[0], list):
+        pixels_left = pixels[0]
+        pixels_right = pixels[1]
+    else:
+        pixels_left = [pixels[0]]
+        pixels_right = [pixels[1]]
 
-        # First board, unpack data
+    # Precompute second-board pixel remapping for all right pixels
+    pix_right_remapped = {}
+    for p in pixels_right:
+        if p >= 256:
+            if p > 256 + 127:
+                pix_right_remapped[p] = 255 - (p - 256)
+            else:
+                pix_right_remapped[p] = p - 256 + 128
+        elif p > 127:
+            pix_right_remapped[p] = 255 - p
+        else:
+            pix_right_remapped[p] = p + 128
+
+    # Load calibration data once before the main loop
+    if apply_calibration:
+        path_calibration_data = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)),
+            "..",
+            "params",
+            "calibration_data",
+        )
+        try:
+            if include_offset:
+                calib1, offset1 = cb.load_calibration_data(
+                    path_calibration_data,
+                    daughterboard_number,
+                    motherboard_number1,
+                    firmware_version,
+                    include_offset,
+                )
+                calib2, offset2 = cb.load_calibration_data(
+                    path_calibration_data,
+                    daughterboard_number,
+                    motherboard_number2,
+                    firmware_version,
+                    include_offset,
+                )
+            else:
+                calib1 = cb.load_calibration_data(
+                    path_calibration_data,
+                    daughterboard_number,
+                    motherboard_number1,
+                    firmware_version,
+                    include_offset,
+                )
+                calib2 = cb.load_calibration_data(
+                    path_calibration_data,
+                    daughterboard_number,
+                    motherboard_number2,
+                    firmware_version,
+                    include_offset,
+                )
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                "No .csv file with the calibration data was found. "
+                "Check the path or run the calibration."
+            )
+
+    ft_file_number = 0
+
+    num_files = min(len(files_all1), len(files_all2))
+    for i in tqdm(range(num_files), desc="Collecting data"):
+        deltas_all = {
+            f"{pl},{pr}": [] for pl in pixels_left for pr in pixels_right
+        }
+
+        # First board, unpack data (absolute timestamps required)
         os.chdir(f"{motherboard_number1}")
         file = files_all1[i]
-        if not absolute_timestamps:
-            data_all1 = f_up.unpack_binary_data(
+        if os.path.getsize(file) // 4 % (timestamps * 65 + 2) != 0:
+            raise ValueError(
+                f"File '{file}' does not contain absolute timestamps "
+                "(expected 65 data rows + 2-word header per cycle). "
+                "Enable 'acqTimestamps' in the LinoSPAD2 GUI."
+            )
+        data_pixels1, data_timestamps1, abs_tmsp1 = (
+            f_up.unpack_binary_data_with_absolute_timestamps(
                 file,
                 daughterboard_number,
                 motherboard_number1,
                 firmware_version,
                 timestamps,
-                include_offset,
-                apply_calibration,
             )
-        else:
-            (
-                data_all1,
-                abs_tmsp1,
-            ) = f_up.unpack_binary_data_with_absolute_timestamps(
-                file,
-                daughterboard_number,
-                motherboard_number1,
-                firmware_version,
-                timestamps,
-                include_offset,
-                apply_calibration,
-            )
-
+        )
         os.chdir("..")
 
-        # Second board, unpack data
+        # Second board, unpack data (absolute timestamps required)
         os.chdir(f"{motherboard_number2}")
         file = files_all2[i]
-        if not absolute_timestamps:
-            data_all2 = f_up.unpack_binary_data(
+        if os.path.getsize(file) // 4 % (timestamps * 65 + 2) != 0:
+            raise ValueError(
+                f"File '{file}' does not contain absolute timestamps "
+                "(expected 65 data rows + 2-word header per cycle). "
+                "Enable 'acqTimestamps' in the LinoSPAD2 GUI."
+            )
+        data_pixels2, data_timestamps2, abs_tmsp2 = (
+            f_up.unpack_binary_data_with_absolute_timestamps(
                 file,
                 daughterboard_number,
                 motherboard_number2,
                 firmware_version,
                 timestamps,
-                include_offset,
-                apply_calibration,
             )
-        else:
-            (
-                data_all2,
-                abs_tmsp2,
-            ) = f_up.unpack_binary_data_with_absolute_timestamps(
-                file,
-                daughterboard_number,
-                motherboard_number2,
-                firmware_version,
-                timestamps,
-                include_offset,
-                apply_calibration,
-            )
-
-        pix_left_peak = pixels[0]
-
-        # The following piece of code take any value for the pixel from
-        # the second motherboard, either in terms of full sensor (so
-        # a value >=256) or in terms of single sensor half
-        if pixels[1] >= 256:
-            if pixels[1] > 256 + 127:
-                pix_right_peak = 255 - (pixels[1] - 256)
-            else:
-                pix_right_peak = pixels[1] - 256 + 128
-        elif pixels[1] > 127:
-            pix_right_peak = 255 - pixels[1]
-        else:
-            pix_right_peak = pixels[1] + 128
-
-        # Get the data from the requested pixel only
-        deltas_all[f"{pix_left_peak},{pix_right_peak}"] = []
-        tdc1, pix_c1 = np.argwhere(pixel_coordinates == pix_left_peak)[0]
-        pix1 = np.where(data_all1[tdc1].T[0] == pix_c1)[0]
-        tdc2, pix_c2 = np.argwhere(pixel_coordinates == pix_right_peak)[0]
-        pix2 = np.where(data_all2[tdc2].T[0] == pix_c2)[0]
-
-        cycle_ends1 = np.where(data_all1[0].T[1] == -2)[0]
-        cycle_ends2 = np.where(data_all2[0].T[1] == -2)[0]
-
-        ends1 = np.insert(cycle_ends1, 0, 0)
-
-        # Timestamps only from the chosen TDCs
-        column_data1 = data_all1[tdc1].T[1]
-        column_data2 = data_all2[tdc2].T[1]
-
-        # For number of timestamps per cycle for the chosen pixels
-        pixel_cycle_pop1 = []
-        pixel_cycle_pop2 = []
-
-        # Populate the lists
-        for i in range(len(ends1) - 1):
-            cycle_indices1 = pix1[(pix1 >= ends1[i]) & (pix1 < ends1[i + 1])]
-            cycle_indices2 = pix2[(pix2 >= ends1[i]) & (pix2 < ends1[i + 1])]
-            pixel_cycle_pop1.append(
-                len(
-                    column_data1[cycle_indices1][
-                        column_data1[cycle_indices1] > 0
-                    ]
-                )
-            )
-            pixel_cycle_pop2.append(
-                len(
-                    column_data2[cycle_indices2][
-                        column_data2[cycle_indices2] > 0
-                    ]
-                )
-            )
-
-        # Find the starting cycle based on the value of threshold
-        cycle_start_index1 = np.where(np.array(pixel_cycle_pop1) > threshold)[
-            0
-        ].min()
-        cycle_start_index2 = np.where(np.array(pixel_cycle_pop2) > threshold)[
-            0
-        ].min()
-
-        cycle_start1 = cycle_ends1[cycle_start_index1]
-        cycle_start2 = cycle_ends2[cycle_start_index2]
-
-        # Cut the absolute timestamps so that they have the same length
-        if absolute_timestamps:
-            if cycle_start_index1 > cycle_start_index2:
-                abs_tmsp_list1.append(abs_tmsp1[cycle_start_index1:])
-                abs_tmsp_list2.append(
-                    abs_tmsp2[
-                        cycle_start_index2 : -cycle_start_index1
-                        + cycle_start_index2
-                    ]
-                )
-            else:
-                abs_tmsp_list1.append(
-                    abs_tmsp1[
-                        cycle_start_index1 : -cycle_start_index2
-                        + cycle_start_index1
-                    ]
-                )
-                abs_tmsp_list2.append(abs_tmsp2[cycle_start_index2:])
-
+        )
         os.chdir("..")
 
-        # Data from one of the board should be shifted as data collection
-        # on one of the board is started later
-        if cycle_start1 > cycle_start2:
-            cyc = len(data_all1[0].T[1]) - cycle_start1 + cycle_start2
-            cycle_ends1 = cycle_ends1[cycle_ends1 >= cycle_start1]
-            cycle_ends2 = np.intersect1d(
-                cycle_ends2[cycle_ends2 >= cycle_start2],
-                cycle_ends2[cycle_ends2 < cyc],
-            )
+        num_cycles = min(
+            data_timestamps1.shape[1] // timestamps,
+            data_timestamps2.shape[1] // timestamps,
+        )
 
-        else:
-            cyc = len(data_all1[0].T[1]) - cycle_start2 + cycle_start1
-            cycle_ends2 = cycle_ends2[cycle_ends2 >= cycle_start2]
-            cycle_ends1 = np.intersect1d(
-                cycle_ends1[cycle_ends1 >= cycle_start1],
-                cycle_ends1[cycle_ends1 < cyc],
-            )
+        # Compute delta-ts for every requested pixel combination
+        for pix_left in pixels_left:
+            for pix_right in pixels_right:
+                pix_right_peak = pix_right_remapped[pix_right]
+                tdc1, pix_c1 = np.argwhere(
+                    pixel_coordinates == pix_left
+                )[0]
+                tdc2, pix_c2 = np.argwhere(
+                    pixel_coordinates == pix_right_peak
+                )[0]
 
-        # Get timestamps for both pixels in the given cycle
-        for cyc in range(len(cycle_ends1) - 1):
-            pix1_ = pix1[
-                np.logical_and(
-                    pix1 >= cycle_ends1[cyc], pix1 < cycle_ends1[cyc + 1]
-                )
-            ]
-            if not np.any(pix1_):
-                continue
-            pix2_ = pix2[
-                np.logical_and(
-                    pix2 >= cycle_ends2[cyc], pix2 < cycle_ends2[cyc + 1]
-                )
-            ]
+                # Count valid timestamps per cycle for threshold detection
+                pixel_cycle_pop1 = []
+                pixel_cycle_pop2 = []
+                for c in range(num_cycles):
+                    s = c * timestamps
+                    e = s + timestamps
+                    pixel_cycle_pop1.append(
+                        int(
+                            (
+                                (data_pixels1[tdc1, s:e] == pix_c1)
+                                & (data_timestamps1[tdc1, s:e] >= 0)
+                            ).sum()
+                        )
+                    )
+                    pixel_cycle_pop2.append(
+                        int(
+                            (
+                                (data_pixels2[tdc2, s:e] == pix_c2)
+                                & (data_timestamps2[tdc2, s:e] >= 0)
+                            ).sum()
+                        )
+                    )
 
-            if not np.any(pix2_):
-                continue
-            # Calculate delta t
-            tmsp1 = data_all1[tdc1].T[1][
-                pix1_[np.where(data_all1[tdc1].T[1][pix1_] > 0)[0]]
-            ]
-            tmsp2 = data_all2[tdc2].T[1][
-                pix2_[np.where(data_all2[tdc2].T[1][pix2_] > 0)[0]]
-            ]
-            for t1 in tmsp1:
-                deltas = tmsp2 - t1
-                ind = np.where(np.abs(deltas) < delta_window)[0]
-                deltas_all[f"{pix_left_peak},{pix_right_peak}"].extend(
-                    deltas[ind]
+                candidates1 = np.where(
+                    np.array(pixel_cycle_pop1) > threshold
+                )[0]
+                candidates2 = np.where(
+                    np.array(pixel_cycle_pop2) > threshold
+                )[0]
+
+                if len(candidates1) == 0 or len(candidates2) == 0:
+                    continue
+
+                cycle_start_index1 = int(candidates1.min())
+                cycle_start_index2 = int(candidates2.min())
+
+                # Constant counter offset between the two boards: the
+                # boards' 64-bit counters (133.333 MHz, 7.5 ns per tick,
+                # latched at each acquisition start) run from independent
+                # power-up times. Subtracting this at the reference cycle
+                # removes the constant inter-board offset so only genuine
+                # per-cycle drift or skipped cycles remain.
+                abs_ref = (
+                    int(abs_tmsp2[cycle_start_index2])
+                    - int(abs_tmsp1[cycle_start_index1])
                 )
+
+                # Compute timestamp differences for aligned cycles.
+                # Cycle c of board1 (starting at cycle_start_index1) is
+                # paired with cycle c of board2 (starting at
+                # cycle_start_index2) because both indices represent the
+                # same physical acquisition moment.
+                num_aligned = num_cycles - max(
+                    cycle_start_index1, cycle_start_index2
+                )
+
+                # Estimate the global epoch offset once, from the first
+                # pixel pair with data: locate the coincidence peak over
+                # the full difference range (coarse 10 ns bins), then
+                # refine with 500 ps bins around it. Uncalibrated
+                # timestamps are sufficient for locating the peak.
+                if epoch_offset_ps is None:
+                    sample_parts = []
+                    sample_count = 0
+                    for c in range(num_aligned):
+                        c1 = cycle_start_index1 + c
+                        c2 = cycle_start_index2 + c
+                        s1 = c1 * timestamps
+                        m1 = (
+                            data_pixels1[tdc1, s1 : s1 + timestamps]
+                            == pix_c1
+                        ) & (
+                            data_timestamps1[tdc1, s1 : s1 + timestamps]
+                            >= 0
+                        )
+                        r1 = data_timestamps1[tdc1, s1 : s1 + timestamps][m1]
+                        s2 = c2 * timestamps
+                        m2 = (
+                            data_pixels2[tdc2, s2 : s2 + timestamps]
+                            == pix_c2
+                        ) & (
+                            data_timestamps2[tdc2, s2 : s2 + timestamps]
+                            >= 0
+                        )
+                        r2 = data_timestamps2[tdc2, s2 : s2 + timestamps][m2]
+                        if len(r1) == 0 or len(r2) == 0:
+                            continue
+                        corr_est = (
+                            int(abs_tmsp2[c2])
+                            - int(abs_tmsp1[c1])
+                            - abs_ref
+                        ) * 7500
+                        d = (
+                            r2[None, :] * 2500 / 140
+                            - r1[:, None] * 2500 / 140
+                            - corr_est
+                        ).ravel()
+                        sample_parts.append(d)
+                        sample_count += d.size
+                        if sample_count >= 2_000_000:
+                            break
+                    if sample_count >= 1000:
+                        sample = np.concatenate(sample_parts)
+                        coarse_bin = 10e3  # 10 ns
+                        coarse_hist, coarse_edges = np.histogram(
+                            sample,
+                            bins=np.arange(
+                                sample.min(),
+                                sample.max() + coarse_bin,
+                                coarse_bin,
+                            ),
+                        )
+                        peak = int(coarse_hist.argmax())
+                        coarse_offset = (
+                            coarse_edges[peak] + coarse_edges[peak + 1]
+                        ) / 2
+                        sel = sample[
+                            np.abs(sample - coarse_offset) < 50e3
+                        ]
+                        fine_hist, fine_edges = np.histogram(
+                            sel,
+                            bins=np.arange(
+                                coarse_offset - 50e3,
+                                coarse_offset + 50e3,
+                                500,
+                            ),
+                        )
+                        fp = int(fine_hist.argmax())
+                        epoch_offset_ps = (
+                            fine_edges[fp] + fine_edges[fp + 1]
+                        ) / 2
+                        background = float(
+                            np.median(coarse_hist[coarse_hist > 0])
+                        )
+                        significance = coarse_hist[peak] / max(
+                            background, 1.0
+                        )
+                        print(
+                            "\nEstimated epoch offset between boards: "
+                            f"{epoch_offset_ps:.0f} ps "
+                            f"(peak/background = {significance:.1f})"
+                        )
+                        if significance < 5:
+                            print(
+                                "WARNING: coincidence peak is weak; the "
+                                "offset estimate may be unreliable. "
+                                "Consider passing 'epoch_offset_ps' "
+                                "explicitly."
+                            )
+                    else:
+                        print(
+                            "\nWARNING: not enough events to estimate "
+                            "the epoch offset; proceeding without it."
+                        )
+                epoch_offset = (
+                    epoch_offset_ps if epoch_offset_ps is not None else 0.0
+                )
+
+                for c in range(num_aligned):
+                    c1 = cycle_start_index1 + c
+                    c2 = cycle_start_index2 + c
+
+                    s1 = c1 * timestamps
+                    mask1 = (
+                        data_pixels1[tdc1, s1 : s1 + timestamps] == pix_c1
+                    ) & (data_timestamps1[tdc1, s1 : s1 + timestamps] >= 0)
+                    raw1 = data_timestamps1[tdc1, s1 : s1 + timestamps][mask1]
+
+                    s2 = c2 * timestamps
+                    mask2 = (
+                        data_pixels2[tdc2, s2 : s2 + timestamps] == pix_c2
+                    ) & (data_timestamps2[tdc2, s2 : s2 + timestamps] >= 0)
+                    raw2 = data_timestamps2[tdc2, s2 : s2 + timestamps][mask2]
+
+                    if len(raw1) == 0 or len(raw2) == 0:
+                        continue
+
+                    if apply_calibration:
+                        tmsp1 = (
+                            (raw1 - raw1 % 140) * 2500 / 140
+                            + calib1[pix_left, raw1 % 140]
+                        )
+                        tmsp2 = (
+                            (raw2 - raw2 % 140) * 2500 / 140
+                            + calib2[pix_right_peak, raw2 % 140]
+                        )
+                        if include_offset:
+                            tmsp1 = tmsp1 + offset1[pix_left]
+                            tmsp2 = tmsp2 + offset2[pix_right_peak]
+                    else:
+                        tmsp1 = raw1 * 2500 / 140
+                        tmsp2 = raw2 * 2500 / 140
+
+                    # Drift correction: abs_tmsp are 133.333 MHz clock
+                    # ticks (7500 ps each, verified against the firmware).
+                    # abs_ref removes the constant counter offset; the
+                    # remaining term captures per-cycle drift and
+                    # compensates skipped acquisition cycles.
+                    correction = (
+                        int(abs_tmsp2[c2]) - int(abs_tmsp1[c1]) - abs_ref
+                    ) * 7500
+                    for t1 in tmsp1:
+                        diffs = tmsp2 - t1 - correction - epoch_offset
+                        ind = np.where(np.abs(diffs) < delta_window)[0]
+                        deltas_all[f"{pix_left},{pix_right}"].extend(
+                            diffs[ind]
+                        )
 
         # Save data to a feather file in a cycle so data is not lost
         # in the case of failure close to the end
-        data_for_plot_df = pd.DataFrame.from_dict(deltas_all, orient="index")
+        data_for_plot_df = pd.DataFrame.from_dict(
+            deltas_all, orient="index"
+        ).T
         del deltas_all
-        data_for_plot_df = data_for_plot_df.T
-
-        feather_file = f"{out_file_name}.feather"
 
         try:
             os.chdir("delta_ts_data")
@@ -1485,35 +1636,55 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
             os.mkdir("delta_ts_data")
             os.chdir("delta_ts_data")
 
-        if os.path.isfile(feather_file):
-            # Load existing Feather file
-            existing_data = ft.read_feather(feather_file)
-
-            # Append new data to the existing Feather file
-            combined_data = pd.concat(
-                [existing_data, data_for_plot_df], axis=0
-            )
-            ft.write_feather(combined_data, feather_file)
-
+        ft_file_name = f"{out_file_name}_{ft_file_number}.feather"
+        if os.path.isfile(ft_file_name):
+            if os.path.getsize(ft_file_name) / 1024 / 1024 < 100:
+                existing_data = ft.read_feather(ft_file_name)
+                combined_data = pd.concat(
+                    [existing_data, data_for_plot_df], axis=0
+                )
+                ft.write_feather(combined_data, ft_file_name)
+            else:
+                ft_file_number += 1
+                ft_file_name = f"{out_file_name}_{ft_file_number}.feather"
+                ft.write_feather(data_for_plot_df, ft_file_name)
         else:
-            # Save as a new Feather file
-            ft.write_feather(data_for_plot_df, feather_file)
+            ft.write_feather(data_for_plot_df, ft_file_name)
 
         os.chdir("..")
 
+    # Combine the numbered feather files into a single one
+    os.chdir(path)
+    try:
+        os.chdir("delta_ts_data")
+    except FileNotFoundError:
+        print("No delta_ts_data folder found. No data was collected.")
+        return epoch_offset_ps
+
+    ft_files = sorted(glob.glob(f"{out_file_name}_*.feather"))
+    if ft_files:
+        data_combined = pd.concat(
+            [ft.read_feather(f) for f in ft_files], ignore_index=True
+        )
+        ft.write_feather(data_combined, f"{out_file_name}.feather")
+        for f in ft_files:
+            os.remove(f)
+
+    os.chdir("..")
+
     # Check if the file with the results was created
-    if (
-        os.path.isfile(os.path.join(path, f"/delta_ts_data/{feather_file}"))
-        is True
+    if os.path.isfile(
+        os.path.join(path, "delta_ts_data", f"{out_file_name}.feather")
     ):
         print(
-            "\n> > > Timestamp differences are saved as"
-            f"{feather_file} in {os.path.join(path, 'delta_ts_data/')} < < <"
+            "\n> > > Timestamp differences are saved as "
+            f"{out_file_name}.feather in "
+            f"{os.path.join(path, 'delta_ts_data')} < < <"
         )
     else:
         print("File wasn't generated. Check input parameters.")
 
-    return abs_tmsp_list1, abs_tmsp_list2 if absolute_timestamps else None
+    return epoch_offset_ps
 
 
 def collect_and_plot_timestamp_differences(
