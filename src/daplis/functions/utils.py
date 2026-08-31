@@ -50,7 +50,6 @@ import pickle
 import sys
 import time
 from glob import glob
-from typing import List, Union
 
 import matplotlib
 import numpy as np
@@ -76,7 +75,6 @@ def apply_mask(
     mask : np.ndarray
         The mask array generated from the given daughterboard and motherboard numbers.
     """
-
     path_to_back = os.getcwd()
     path_to_mask = os.path.join(
         os.path.dirname(os.path.realpath(__file__)),
@@ -227,16 +225,17 @@ def pixel_list_transform(pixels: list):
     A mix of an integer and a list is treated as the two-group form,
     with the integer as a group of its own.
 
-    Parameters:
+    Parameters
+    ----------
         pixels : list
             A list of pixel numbers or a list of two lists of pixel
             numbers.
 
-    Returns:
+    Returns
+    -------
         list: A list of the left pixels.
         list: A list of the right pixels.
     """
-
     if not pixels:
         raise ValueError("'pixels' should not be empty")
 
@@ -291,7 +290,7 @@ def __correct_pix_address(pix: int):
 
 
 # def correct_pixels_address(pixels: List[int] | List[List[int]]):
-def correct_pixels_address(pixels: Union[List[int], List[List[int]]]):
+def correct_pixels_address(pixels: list[int] | list[list[int]]):
     """Correct pixel address for all given pixels.
 
     Return the list with the same dimensions as the input.

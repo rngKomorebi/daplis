@@ -21,8 +21,6 @@ functions:
 
 from __future__ import annotations
 
-from typing import List
-
 import numpy as np
 from numpy import ndarray
 
@@ -172,7 +170,7 @@ from daplis.functions import utils
 
 def calculate_differences(
     data: ndarray,
-    pixels: List[int] | List[List[int]],
+    pixels: list[int] | list[list[int]],
     delta_window: float = 50e3,
     cycle_length: float = 4e9,
 ):
@@ -202,7 +200,6 @@ def calculate_differences(
         Dictionary containing timestamp differences for each pair of pixels.
 
     """
-
     # Dictionary for the timestamp differences, where keys are the
     # pixel numbers of the requested pairs
     deltas_all = {}
@@ -258,7 +255,7 @@ def calculate_differences(
 
 def calculate_differences_1v1(
     data: ndarray,
-    pixels: List[int] | List[List[int]],
+    pixels: list[int] | list[list[int]],
     delta_window: float = 50e3,
     cycle_length: float = 4e9,
 ):
@@ -286,7 +283,6 @@ def calculate_differences_1v1(
     deltas_all : dict
         Timestamp differences keyed by ``"q,w"`` for each pair.
     """
-
     deltas_all = {}
 
     # A flat list of pixel numbers means "all combinations" and cannot

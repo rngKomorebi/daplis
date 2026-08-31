@@ -36,6 +36,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The lint gate is clean: 220 ruff violations across the package are fixed.
+  Beyond the bugs listed under Fixed, this is `typing.List`/`Union` replaced by
+  PEP 585/604 built-in generics, f-strings for `.format` calls, unused imports
+  dropped, numpydoc section formatting corrected, and docstrings added for the
+  two packages and `MpWizard`. `archive/` and the example notebooks are
+  excluded, and the unittest-based suite is exempt from the docstring rules.
+  Computations that are deliberately kept but unused carry `# noqa: F841` with
+  a reason rather than being deleted.
+
+- CI runs the test suite with pytest directly instead of through tox. `*.ini`
+  in `.gitignore` had kept `tox.ini` out of the repository, so `tox -r` found
+  no configuration, ran nothing and still exited 0 - every "Test with tox" job
+  had been passing without executing a single test.
+
 -`calculate_and_save_timestamp_differences_full_sensor_alt` is
   rewritten around a single global board-to-board offset.** The two boards are
   taken to share an external clock but no trigger (CLK_IN/J11 only), so each
@@ -108,6 +122,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   colorblind-accessible eight-colour cycle is unchanged.
 
 ### Fixed
+
+- `fit_with_gaussian_full_sensor` used `bins_coarse` two lines before it was
+  assigned, so the function raised `NameError` on every call. The offending
+  pair of lines was a leftover duplicate of the coarse-histogram block that
+  follows them, and the surviving block also runs after the "too few
+  differences" guard rather than before it.
+
+- `collect_and_plot_timestamp_differences_shared_feather` raised `NameError`
+  for more than two pixels: the multi-pixel branch passed `chosen_color` to
+  `hist`, where the parameter is called `color`.
+
+- Three `except FileNotFoundError` branches in `fits.py` did `raise ("...")`,
+  which raises a `str`. Python turned that into `TypeError: exceptions must
+  derive from BaseException`, hiding the missing 'delta_ts_data' folder behind
+  an unrelated error. They now raise `FileNotFoundError`, and every re-raise in
+  the package chains its cause with `raise ... from exc`.
+
+- `unpack_calibration_data` averaged the TDC calibration csv files by dividing
+  by `i + 1`, reading the loop variable after the loop. It now divides by
+  `len(files_csv)`, which is also defined when the folder holds no csv files.
+
+- `MpWizard` used a mutable default argument (`pixels: list = []`), shared
+  across every instance that did not pass `pixels`.
 
 - `calculate_differences` dropped every pixel pair whose right-hand index was
   not greater than the left-hand one (`if w <= q: continue`). A full-sensor

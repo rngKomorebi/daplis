@@ -58,7 +58,6 @@ import os
 import pickle
 import sys
 from math import ceil
-from typing import List
 
 import numpy as np
 import pandas as pd
@@ -72,7 +71,7 @@ from daplis.functions import unpack as f_up
 from daplis.functions import utils
 
 
-def _flatten(input_list: List):
+def _flatten(input_list: list):
     """Flatten the input list.
 
     Flatten the input list, which can be a list of numbers, lists,
@@ -121,7 +120,6 @@ def _combine_intermediate_feather_files(path: str, skip_data: bool = False):
         Raised when the folder "delta_ts_data", where timestamp
         differences are saved, cannot be found in the path.
     """
-
     os.chdir(path)
 
     if not skip_data:
@@ -138,10 +136,10 @@ def _combine_intermediate_feather_files(path: str, skip_data: bool = False):
 
     try:
         os.chdir("delta_ts_data")
-    except FileNotFoundError:
+    except FileNotFoundError as exc:
         raise FileNotFoundError(
             "Folder with saved timestamp differences was not found"
-        )
+        ) from exc
 
     file_pattern = f"{feather_file_name}*_*.feather"
 
@@ -163,7 +161,7 @@ def _combine_intermediate_feather_files(path: str, skip_data: bool = False):
 
 def calculate_and_save_timestamp_differences(
     path: str,
-    pixels: List[int] | List[List[int]],
+    pixels: list[int] | list[list[int]],
     rewrite: bool,
     daughterboard_number: str,
     motherboard_number: str,
@@ -234,7 +232,6 @@ def calculate_and_save_timestamp_differences(
     TypeError
         If ``daughterboard_number`` is not a string.
     """
-
     # Parameter type check
     if isinstance(pixels, list) is False:
         raise TypeError(
@@ -381,11 +378,11 @@ def calculate_and_save_timestamp_differences(
                         firmware_version,
                         include_offset,
                     )
-            except FileNotFoundError:
+            except FileNotFoundError as exc:
                 raise FileNotFoundError(
                     "No .csv file with the calibration data was found. "
                     "Check the path or run the calibration."
-                )
+                ) from exc
 
             for i in [x for sublist in pixels for x in sublist]:
                 # Transform pixel number to TDC number and pixel coordinates in
@@ -467,7 +464,7 @@ def calculate_and_save_timestamp_differences(
 
 def calculate_and_save_timestamp_differences_1v1(
     path: str,
-    pixels: List[int] | List[List[int]],
+    pixels: list[int] | list[list[int]],
     rewrite: bool,
     daughterboard_number: str,
     motherboard_number: str,
@@ -689,11 +686,11 @@ def calculate_and_save_timestamp_differences_1v1(
                         firmware_version,
                         include_offset,
                     )
-            except FileNotFoundError:
+            except FileNotFoundError as exc:
                 raise FileNotFoundError(
                     "No .csv file with the calibration data was found. "
                     "Check the path or run the calibration."
-                )
+                ) from exc
 
             for pix in [x for sublist in pixels for x in sublist]:
                 tdc, pix_c = np.argwhere(pixel_coordinates == pix)[0]
@@ -1607,11 +1604,11 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
                     firmware_version,
                     include_offset,
                 )
-        except FileNotFoundError:
+        except FileNotFoundError as exc:
             raise FileNotFoundError(
                 "No .csv file with the calibration data was found. "
                 "Check the path or run the calibration."
-            )
+            ) from exc
 
     # Pool every requested pixel's photons onto each board's continuous
     # absolute-timestamp timeline (each file is unpacked once).
@@ -1980,9 +1977,12 @@ def collect_and_plot_timestamp_differences(
                 peak_max_pos = np.argmax(n).astype(np.intc)
                 # 2 ns window around peak
                 win = int(1000 / ((range_right - range_left) / 100))
-                peak_max = np.sum(n[peak_max_pos - win : peak_max_pos + win])
+                # Integrated peak, computed for inspection only here.
+                peak_max = np.sum(  # noqa: F841
+                    n[peak_max_pos - win : peak_max_pos + win]
+                )
             except ValueError:
-                peak_max = 0
+                peak_max = 0  # noqa: F841
 
             if same_y is True:
                 try:
@@ -2123,7 +2123,7 @@ def collect_and_plot_timestamp_differences_full_sensor(
     feather_file_name1 = files_all[0][:-4] + "-"
     feather_file_name2 = "-" + files_all[-1][:-4]
 
-    os.chdir("../{}".format(folders[1]))
+    os.chdir(f"../{folders[1]}")
     # files_all = sorted(glob.glob("*.dat*"))
     files_all = glob.glob("*.dat*")
     # files_all.sort(key=lambda x: os.path.getmtime(x))
@@ -2297,7 +2297,7 @@ def collect_and_plot_timestamp_differences_full_sensor(
                 os.chdir("results/delta_t")
             fig.tight_layout()  # for perfect spacing between the plots
             plt.savefig(
-                "{name}_delta_t_grid.png".format(name=feather_file_name)
+                f"{feather_file_name}_delta_t_grid.png"
             )
             os.chdir("../..")
 
@@ -2336,7 +2336,6 @@ def unpickle_plot(delta_t_pickle_file: str) -> dict:
         If the specified pickle file does not exist, a FileNotFoundError
         is raised and an error message is printed.
     """
-
     # Unpickle the plot from '.pkl' file
     try:
         with open(delta_t_pickle_file, "rb") as f:

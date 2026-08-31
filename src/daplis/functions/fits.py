@@ -39,7 +39,6 @@ import glob
 import os
 import pickle
 import re
-from typing import List
 
 import matplotlib as mpl
 import numpy as np
@@ -342,7 +341,7 @@ from daplis.functions import utils
 
 def fit_with_gaussian(
     path: str,
-    pixels: List[int] | List[List[int]],
+    pixels: list[int] | list[list[int]],
     ft_file: str = None,
     range_left: float = -5e3,
     range_right: float = 5e3,
@@ -445,8 +444,10 @@ def fit_with_gaussian(
 
         try:
             os.chdir("delta_ts_data")
-        except FileNotFoundError:
-            raise ("\nFile with data not found")
+        except FileNotFoundError as exc:
+            raise FileNotFoundError(
+                "\nFile with data not found"
+            ) from exc
 
         feather_file_name = glob.glob(f"*{file_name}.feather*")[0]
 
@@ -495,7 +496,9 @@ def fit_with_gaussian(
             n, b = np.histogram(data_to_plot, bins)
 
             try:
-                n_argmax = np.argmax(n)
+                # Kept for the window narrowing commented out below; the
+                # call still reports an empty histogram.
+                n_argmax = np.argmax(n)  # noqa: F841
             except ValueError:
                 print("Couldn't find position of histogram max")
 
@@ -648,7 +651,7 @@ def fit_with_gaussian(
 
 def fit_with_gaussian_combine(
     path: str,
-    pixels: List[int] | List[List[int]],
+    pixels: list[int] | list[list[int]],
     ft_file: str = None,
     range_left: float = -5e3,
     range_right: float = 5e3,
@@ -752,8 +755,10 @@ def fit_with_gaussian_combine(
 
         try:
             os.chdir("delta_ts_data")
-        except FileNotFoundError:
-            raise ("\nFile with data not found")
+        except FileNotFoundError as exc:
+            raise FileNotFoundError(
+                "\nFile with data not found"
+            ) from exc
 
         feather_file_name = glob.glob(f"*{file_name}.feather*")[0]
 
@@ -805,7 +810,9 @@ def fit_with_gaussian_combine(
             n, b = np.histogram(data_to_plot, bins)
 
             try:
-                n_argmax = np.argmax(n)
+                # Kept for the window narrowing commented out below; the
+                # call still reports an empty histogram.
+                n_argmax = np.argmax(n)  # noqa: F841
             except ValueError:
                 print("Couldn't find position of histogram max")
 
@@ -954,7 +961,7 @@ def fit_with_gaussian_combine(
 
 def fit_with_gaussian_all(
     path: str,
-    pixels: List[int] | List[List[int]],
+    pixels: list[int] | list[list[int]],
     ft_file: str = None,
     threshold_multiplier: float = 1.2,
     range_left: float = -5e3,
@@ -1014,6 +1021,7 @@ def fit_with_gaussian_all(
     pickle_figure : bool, optional
         Switch for pickling the plot. Can be used to extract the plot
         data. The default is False.
+
     Raises
     ------
     FileNotFoundError
@@ -1032,7 +1040,6 @@ def fit_with_gaussian_all(
         Returned only if the "return_fit_params" is set to True.
 
     """
-
     os.chdir(path)
 
     # Correct pixel addressing for motherboard on side '23'
@@ -1053,8 +1060,10 @@ def fit_with_gaussian_all(
 
         try:
             os.chdir("delta_ts_data")
-        except FileNotFoundError:
-            raise ("\nFile with data not found")
+        except FileNotFoundError as exc:
+            raise FileNotFoundError(
+                "\nFile with data not found"
+            ) from exc
 
         feather_file_name = glob.glob(f"*{file_name}.feather*")[0]
 
@@ -1255,9 +1264,10 @@ def fit_with_gaussian_all(
                     & (data_to_fit < bckg_center_position + 2 * par[2])
                 ]
 
-                # Plot the Gaussian fit and the 2-sigma interval
-                er1 = np.sqrt(len(data_in_interval))
-                er2 = np.sqrt(len(bckg_in_2sigma))
+                # Poisson errors on the signal and the background
+                # windows. Not annotated on the plot at the moment.
+                er1 = np.sqrt(len(data_in_interval))  # noqa: F841
+                er2 = np.sqrt(len(bckg_in_2sigma))  # noqa: F841
 
             if return_fit_params:
                 fit_params[f"{pix_left},{pix_right}"] = params_df
@@ -1296,7 +1306,7 @@ def fit_with_gaussian_all(
 # TODO no data to test full sensor plot
 def fit_with_gaussian_full_sensor(
     path: str,
-    pix_pair: List[int],
+    pix_pair: list[int],
     ft_file: str = None,
     range_left: float = -5e3,
     range_right: float = 5e3,
@@ -1456,9 +1466,6 @@ def fit_with_gaussian_full_sensor(
     data_to_plot = np.delete(
         data_to_plot, np.argwhere(data_to_plot > center + range_right)
     )
-    n_coarse, b_coarse = np.histogram(data_to_plot, bins_coarse)
-    mu_seed = ((b_coarse[:-1] + b_coarse[1:]) / 2)[np.argmax(n_coarse)]
-
     if data_to_plot.size < 10:
         raise ValueError(
             "No (or too few) timestamp differences inside the requested "
@@ -1650,7 +1657,7 @@ def fit_with_gaussian_full_sensor(
 
 def fit_with_gaussian_lmfit(
     path: str,
-    pixels: List[int] | List[List[int]],
+    pixels: list[int] | list[list[int]],
     ft_file: str = None,
     range_left: float = -5e3,
     range_right: float = 5e3,
@@ -1715,7 +1722,6 @@ def fit_with_gaussian_lmfit(
     FileNotFoundError
         Raised if the 'delta_ts_data' folder was not found.
     """
-
     os.chdir(path)
 
     # Correct pixel addressing for motherboard on side '23'
@@ -1736,11 +1742,11 @@ def fit_with_gaussian_lmfit(
 
         try:
             os.chdir("delta_ts_data")
-        except FileNotFoundError:
+        except FileNotFoundError as exc:
             raise FileNotFoundError(
                 "Folder 'delta_ts_data' with the "
                 "timestamps differences was not found."
-            )
+            ) from exc
 
         feather_file_name = glob.glob(f"*{file_name}.feather*")[0]
 
@@ -1987,7 +1993,6 @@ def fit_with_gaussian_lmfit(
             )
             ax2.set_ylabel("Residuals (-)")
             ax2.set_xlabel("$\Delta$t (ps)")
-            ax2_lines = ax2.get_lines()
             ax2.set_xlim(
                 range_left,
                 range_right,
@@ -2082,7 +2087,7 @@ def fit_with_gaussian_lmfit(
 
 def fit_with_gaussian_lmfit_with_stats(
     path: str,
-    pixels: List[int] | List[List[int]],
+    pixels: list[int] | list[list[int]],
     ft_file: str = None,
     range_left: float = -5e3,
     range_right: float = 5e3,
@@ -2163,7 +2168,6 @@ def fit_with_gaussian_lmfit_with_stats(
     FileNotFoundError
         Raised if the 'delta_ts_data' folder was not found.
     """
-
     os.chdir(path)
 
     if correct_pix_address:
@@ -2180,11 +2184,11 @@ def fit_with_gaussian_lmfit_with_stats(
 
         try:
             os.chdir("delta_ts_data")
-        except FileNotFoundError:
+        except FileNotFoundError as exc:
             raise FileNotFoundError(
                 "Folder 'delta_ts_data' with the "
                 "timestamps differences was not found."
-            )
+            ) from exc
 
         feather_file_name = glob.glob(f"*{file_name}.feather*")[0]
 

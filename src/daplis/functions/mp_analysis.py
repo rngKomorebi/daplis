@@ -1,9 +1,8 @@
-"""This module contains functions for LS2 data analysis that utilize
-the multiprocessing Python library for speeding up the analysis
-by using all available CPU cores instead of a single one.
+"""LS2 data analysis spread over all available CPU cores.
 
-This module can be imported with the class MpWizard and its internal
-functions for data analysis using multiple CPU cores.
+Uses the multiprocessing Python library to speed the analysis up by
+using every available CPU core instead of a single one. Import the class
+MpWizard and its internal functions to analyze data on multiple cores.
 
 """
 
@@ -301,13 +300,18 @@ from daplis.functions.calibrate import load_calibration_data
 
 
 class MpWizard:
+    """Run the LinoSPAD2 analysis functions across multiple CPU cores.
+
+    Holds the acquisition and calibration parameters once and passes them
+    into every internal analysis function.
+    """
 
     # Initialize by passing the input parameters which later will be
     # passed into all internal functions
     def __init__(
         self,
         path: str = "",
-        pixels: list = [],
+        pixels: list | None = None,
         daughterboard_number: str = "",
         motherboard_number: str = "",
         firmware_version: str = "",
@@ -321,7 +325,7 @@ class MpWizard:
     ):
 
         self.path = path
-        self.pixels = pixels
+        self.pixels = pixels if pixels is not None else []
         self.daughterboard_number = daughterboard_number
         self.motherboard_number = motherboard_number
         self.firmware_version = firmware_version
@@ -493,7 +497,6 @@ class MpWizard:
         files : List
             '.dat' data files to analyze.
         """
-
         # try-except railguard for a function that goes to separate
         # cores
         try:
@@ -531,7 +534,7 @@ class MpWizard:
             print(f"Error processing files {files}: {e}")
 
     def calculate_and_save_timestamp_differences_mp(self):
-
+        """Calculate timestamp differences using the requested CPU cores."""
         # Find all LinoSPAD2 data files
         files = glob.glob("*.dat")
         num_of_files = len(files)

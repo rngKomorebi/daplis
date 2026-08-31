@@ -86,9 +86,10 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 88
 src = ["src", "tests"]
-# Superseded code kept for reference only - it is not imported, not
-# tested, and not worth linting.
-extend-exclude = ["archive"]
+# archive/: superseded code kept for reference only - not imported, not
+# tested, not worth linting. Notebooks: teaching material, where cell-by-cell
+# import blocks and re-assignment are the point.
+extend-exclude = ["archive", "*.ipynb"]
 
 [tool.ruff.lint]
 select = [
@@ -112,4 +113,6 @@ convention = "numpy"
 
 [tool.ruff.lint.per-file-ignores]
 # Tests document themselves through their names; docstrings are optional.
-"tests/*" = ["D103"]
+# The suite is unittest-based, so the cases are classes and methods (D101,
+# D102) rather than plain functions (D103).
+"tests/*" = ["D1"]

@@ -32,20 +32,20 @@ import glob
 import os
 import pickle
 import sys
-from typing import List
 
 import numpy as np
-from daplis.functions import unpack as f_up
-from daplis.functions import utils
 from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
 from scipy.optimize import curve_fit
 from scipy.signal import find_peaks
 from tqdm import tqdm
 
+from daplis.functions import unpack as f_up
+from daplis.functions import utils
+
 
 def collect_data_and_apply_mask(
-    files: List[str] | str,
+    files: list[str] | str,
     daughterboard_number: str,
     motherboard_number: str,
     firmware_version: str,
@@ -402,7 +402,7 @@ def plot_sensor_population(
     None.
 
     Examples
-    -------
+    --------
     An example how the function can be used to get the sensor
     occupation from a single file while looking for peaks - the most
     quick and straightforward approach to find where the beams were
@@ -849,7 +849,6 @@ def plot_sensor_population_full_sensor(
 
     Notes
     -----
-
     As the pixel addressing is incorrect for one of the sensor halves
     (depends on the daughterboard-motherboards combinatios; in NL11, for
     motherboard #21 pixel addressing should be applied), it is important

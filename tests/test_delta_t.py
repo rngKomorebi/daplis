@@ -2,7 +2,6 @@ import os
 import shutil
 import unittest
 
-import numpy as np
 from pyarrow import feather as ft
 
 from daplis.functions.delta_t import (
@@ -390,7 +389,7 @@ class TestDeltasFull(unittest.TestCase):
 
     def tearDownClass():
         # Clean up after tests
-        os.chdir(r"{}".format(os.path.dirname(os.path.realpath(__file__))))
+        os.chdir(rf"{os.path.dirname(os.path.realpath(__file__))}")
         shutil.rmtree("test_data/delta_ts_data")
         shutil.rmtree("test_data/results")
 

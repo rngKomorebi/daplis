@@ -128,7 +128,6 @@ def sensor_population_by_cycle(
         Tuple containing the sensor population array and the list of
         absolute timestamps.
     """
-
     os.chdir(path)
 
     files_all = glob.glob("*.dat*")
@@ -248,8 +247,6 @@ def pixel_population_by_cycle(
 ):
     """
     Collect and plot pixel population data by acquisition cycle.
-
-
 
     Parameters
     ----------
@@ -388,9 +385,10 @@ def get_time_ratios(
     include_offset: bool = False,
     apply_calibration: bool = True,
 ):
-    """
-    Calculate the ratio of time of actual data collection and the time it
-    takes to create and save the files.
+    """Calculate the ratio of data-collection time to file-saving time.
+
+    Compares the time of actual data collection with the time it takes to
+    create and save the files.
 
     Parameters
     ----------
@@ -412,7 +410,6 @@ def get_time_ratios(
         calibration is applied. The default is True.
 
     """
-
     os.chdir(path)
 
     files = glob.glob("*.dat*")
@@ -455,7 +452,8 @@ def get_time_ratios(
     ratio_average = np.mean(ratios)
     error = np.std(ratios) / np.sqrt(len(ratios))
 
-    intercycle_time = [
+    # Per-cycle dead time, kept for inspection.
+    intercycle_time = [  # noqa: F841
         collecting_times[i] - number_of_cycles[i] * tp_max
         for i in range(len(collecting_times))
     ]
@@ -469,8 +467,8 @@ def save_file_times(path):
     """
     Save creation and modification times of data files into a .feather file.
 
-    Parameters:
-
+    Parameters
+    ----------
     path : str
         Path to the data files.
 
@@ -506,11 +504,10 @@ def save_file_times(path):
 
 
 def load_data_from_feather(path):
-    """
-    Loads the creation and modification time from feather file.
+    """Load the creation and modification time from a feather file.
 
-    Parameters:
-
+    Parameters
+    ----------
     path : str
         Path to the data files.
 
@@ -747,7 +744,6 @@ def sigma_of_count_spread_to_average_from_ft_file(
         Number of elements to add to the background spread histogram
         for a better fit. The default is 0, when no elements are added.
     """
-
     ft_file_name = ft_file.split(".")[0]
 
     os.chdir(path)

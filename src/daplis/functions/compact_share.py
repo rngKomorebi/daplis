@@ -54,8 +54,7 @@ def compact_share_feather(
     apply_calibration: bool = True,
     absolute_timestamps: bool = False,
 ):
-    """Collect delta timestamp differences and sensor population, and
-    save to a feather file.
+    """Collect timestamp differences and sensor population, then zip them.
 
     Unpacks data in the given folder, calculates timestamp differences
     and sensor population for the specified pixels, saving the timestamp
@@ -107,7 +106,6 @@ def compact_share_feather(
     -------
     None.
     """
-
     # parameter type check
     if isinstance(pixels, list) is False:
         raise TypeError(
@@ -258,7 +256,7 @@ def plot_shared(
     app_mask: bool = True,
     color: str | None = None,
 ):
-    """Plots sensor population from a '.txt' file.
+    """Plot sensor population from a '.txt' file.
 
     Plots the sensor population plot fro ma '.txt' file that is saved
     with the function above. Plot is saved in the
@@ -290,8 +288,10 @@ def plot_shared(
 
     try:
         file = glob.glob("*.txt*")[0]
-    except IndexError:
-        raise IndexError(".txt file not found - check the folder")
+    except IndexError as exc:
+        raise IndexError(
+            ".txt file not found - check the folder"
+        ) from exc
 
     file_name = file[:-4]
 
@@ -303,7 +303,7 @@ def plot_shared(
         path_to_mask = os.path.realpath(__file__) + "/../.." + "/params/masks"
         os.chdir(path_to_mask)
         file_mask = glob.glob(
-            "*{}_{}*".format(daughterboard_number, motherboard_number)
+            f"*{daughterboard_number}_{motherboard_number}*"
         )[0]
         mask = np.genfromtxt(file_mask).astype(int)
         data[mask] = 0
@@ -324,7 +324,7 @@ def plot_shared(
     except Exception:
         os.makedirs("results/sensor_population")
         os.chdir("results/sensor_population")
-    plt.savefig("{}.png".format(file_name))
+    plt.savefig(f"{file_name}.png")
     os.chdir("..")
 
 
@@ -415,8 +415,8 @@ def collect_and_plot_timestamp_differences_shared_feather(
             try:
                 # keep only the required column in memory
                 data_to_plot = ft.read_feather(
-                    "{name}.feather".format(name=feather_file_name),
-                    columns=["{},{}".format(pixels[q], pixels[w])],
+                    f"{feather_file_name}.feather",
+                    columns=[f"{pixels[q]},{pixels[w]}"],
                 ).dropna()
             except ValueError:
                 continue
@@ -438,8 +438,8 @@ def collect_and_plot_timestamp_differences_shared_feather(
                 )
             except ValueError:
                 print(
-                    "\nCouldn't calculate bins for {q}-{w} pair: probably not "
-                    "enough delta ts.".format(q=q, w=w)
+                    f"\nCouldn't calculate bins for {q}-{w} pair: probably not "
+                    "enough delta ts."
                 )
                 continue
 
@@ -449,7 +449,7 @@ def collect_and_plot_timestamp_differences_shared_feather(
                 n, b, p = axs[q][w - 1].hist(
                     data_to_plot,
                     bins=bins,
-                    color=chosen_color,
+                    color=color,
                 )
             else:
                 plt.xlabel("\u0394t (ps)")
@@ -484,14 +484,12 @@ def collect_and_plot_timestamp_differences_shared_feather(
             if len(pixels) > 2:
                 axs[q][w - 1].set_xlim(range_left - 100, range_right + 100)
                 axs[q][w - 1].set_title(
-                    "Pixels {p1},{p2}\nPeak in 2 ns window: {pp}".format(
-                        p1=pixels[q], p2=pixels[w], pp=int(peak_max)
-                    )
+                    f"Pixels {pixels[q]},{pixels[w]}\nPeak in 2 ns window: {int(peak_max)}"
                 )
             else:
                 plt.xlim(range_left - 100, range_right + 100)
                 plt.title(
-                    "Pixels {p1},{p2}".format(p1=pixels[q], p2=pixels[w])
+                    f"Pixels {pixels[q]},{pixels[w]}"
                 )
 
             try:
@@ -501,7 +499,7 @@ def collect_and_plot_timestamp_differences_shared_feather(
                 os.chdir("results/delta_t")
             fig.tight_layout()  # for perfect spacing between the plots
             plt.savefig(
-                "{name}_delta_t_grid.png".format(name=feather_file_name)
+                f"{feather_file_name}_delta_t_grid.png"
             )
             os.chdir("../..")
     print(
