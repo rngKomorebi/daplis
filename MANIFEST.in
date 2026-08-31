@@ -1,3 +1,7 @@
 include src/daplis/params/masks/*.txt
 include src/daplis/params/calibration_data/*.csv
 include src/daplis/params/calibration_data/*.npy
+
+# Test fixtures are tracked for CI but are 40 MB together - they have
+# no place in the sdist people download from PyPI.
+prune tests/test_data

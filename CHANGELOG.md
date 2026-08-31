@@ -50,6 +50,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   no configuration, ran nothing and still exited 0 - every "Test with tox" job
   had been passing without executing a single test.
 
+- `tests/test_data/test.feather` is tracked. The six `fit_with_gaussian_*`
+  tests read it, and it cannot be rebuilt from the other test data - pixel pair
+  82,116 has no coincidences in `test_data_2212b.dat`, which yields about 700
+  across all pairs put together. Leaving it untracked meant those six could
+  never run on a fresh checkout, so the whole suite now runs in CI.
+
+- `MANIFEST.in` prunes `tests/test_data` from the sdist. The two fixtures come
+  to 40 MB, and shipping them to everyone who installs from PyPI serves no
+  purpose - the sdist gets smaller than it was before the fixture was added.
+
 -`calculate_and_save_timestamp_differences_full_sensor_alt` is
   rewritten around a single global board-to-board offset.** The two boards are
   taken to share an external clock but no trigger (CLK_IN/J11 only), so each
