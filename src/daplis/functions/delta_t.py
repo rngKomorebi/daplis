@@ -1428,6 +1428,12 @@ def calculate_and_save_timestamp_differences_full_sensor_alt(
     collected with 'acqTimestamps' enabled in the LinoSPAD2 GUI (adds a
     2-word header per acquisition cycle).
 
+    Absolute timestamps are always required. Each data file must have been
+    collected with 'acqTimestamps' enabled in the LinoSPAD2 GUI (adds a
+    2-word header per acquisition cycle). The per-cycle clock offset between
+    the two boards is computed from these timestamps and subtracted from
+    every photon timestamp difference before saving.
+
     Parameters
     ----------
     path : str

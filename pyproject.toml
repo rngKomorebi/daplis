@@ -4,8 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "daplis"
-dynamic = ["version"]
-description = "DAPLIS: Data Analysis Package for LInoSpad"
+version = "1.4.5"
+description = "Data Analysis Package for LInoSpad"
+authors = [{ name = "Sergei Kulkov", email = "sergei.kulkov23@gmail.com" }]
+license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"

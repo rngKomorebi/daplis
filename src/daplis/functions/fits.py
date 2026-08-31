@@ -1456,6 +1456,8 @@ def fit_with_gaussian_full_sensor(
     data_to_plot = np.delete(
         data_to_plot, np.argwhere(data_to_plot > center + range_right)
     )
+    n_coarse, b_coarse = np.histogram(data_to_plot, bins_coarse)
+    mu_seed = ((b_coarse[:-1] + b_coarse[1:]) / 2)[np.argmax(n_coarse)]
 
     if data_to_plot.size < 10:
         raise ValueError(
