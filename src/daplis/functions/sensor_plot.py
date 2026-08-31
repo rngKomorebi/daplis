@@ -35,14 +35,13 @@ import sys
 from typing import List
 
 import numpy as np
+from daplis.functions import unpack as f_up
+from daplis.functions import utils
 from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
 from scipy.optimize import curve_fit
 from scipy.signal import find_peaks
 from tqdm import tqdm
-
-from daplis.functions import unpack as f_up
-from daplis.functions import utils
 
 
 def collect_data_and_apply_mask(
