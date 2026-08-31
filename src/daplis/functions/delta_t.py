@@ -2340,8 +2340,10 @@ def unpickle_plot(delta_t_pickle_file: str) -> dict:
     try:
         with open(delta_t_pickle_file, "rb") as f:
             fig = pickle.load(f)
-    except FileNotFoundError as e:
-        print(f"{e}")
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(
+            f"Pickled plot '{delta_t_pickle_file}' was not found"
+        ) from exc
 
     # Get the axes from the plot
     axes = fig.axes

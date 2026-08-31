@@ -1099,8 +1099,10 @@ def unpickle_plot(plot_pickle_file: str) -> dict:
     try:
         with open(plot_pickle_file, "rb") as f:
             fig = pickle.load(f)
-    except FileNotFoundError as e:
-        print(f" {e}")
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(
+            f"Pickled plot '{plot_pickle_file}' was not found"
+        ) from exc
 
     # Pack the data into a dictionary, first is the histogram, others
     # are the fits

@@ -36,6 +36,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The tests run on matplotlib's headless `Agg` backend, set in
+  `tests/conftest.py`. Unpickling a saved figure builds a canvas for whatever
+  backend is current; on Windows matplotlib picks `TkAgg`, and the Tcl/Tk
+  shipped with the hosted CI runners is incomplete - Python 3.13 there fails
+  with "Can't find a usable tk.tcl". Linux has no display and had been falling
+  back to `Agg` on its own, which is why only the Windows jobs were affected.
+
 - The lint gate is clean: 220 ruff violations across the package are fixed.
   Beyond the bugs listed under Fixed, this is `typing.List`/`Union` replaced by
   PEP 585/604 built-in generics, f-strings for `.format` calls, unused imports
@@ -132,6 +139,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   colorblind-accessible eight-colour cycle is unchanged.
 
 ### Fixed
+
+- `unpickle_plot`, `unpickle_fit` and `unpickle_sensor_plot` caught
+  `FileNotFoundError`, printed it, and then went on to use the figure, so a
+  missing pickle surfaced as `UnboundLocalError: cannot access local variable
+  'fig'` several lines later rather than naming the file. They now raise
+  `FileNotFoundError` with the path, which is what their docstrings already
+  promised.
 
 - `fit_with_gaussian_full_sensor` used `bins_coarse` two lines before it was
   assigned, so the function raised `NameError` on every call. The offending
