@@ -1,3 +1,5 @@
+"""Sphinx configuration for the daplis documentation."""
+
 # Configuration file for the Sphinx documentation builder.
 #
 # This file only contains a selection of the most common options. For a full
@@ -22,8 +24,17 @@ project = "Data Analysis Package for LinoSPAD2"
 copyright = "2024, Sergei Kulkov"
 author = "Sergei Kulkov"
 
-# The full version, including alpha/beta/rc tags
-release = "1.0.0"
+# The full version, including alpha/beta/rc tags. Read from the installed
+# distribution rather than hardcoded: setuptools_scm derives the version from
+# the git tag, so there is no version string in the source tree to copy here.
+from importlib.metadata import PackageNotFoundError  # noqa: E402
+from importlib.metadata import version as _version  # noqa: E402
+
+try:
+    release = _version("daplis")
+except PackageNotFoundError:  # docs built without installing the package
+    release = "0.0.0.dev0"
+version = ".".join(release.split(".")[:2])
 
 
 # -- General configuration ---------------------------------------------------

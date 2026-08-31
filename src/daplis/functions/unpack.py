@@ -47,6 +47,7 @@ def unpack_binary_data(
         2D array of pixel coordinates in the TDC.
     data_timestamps : array-like
         2D array of photon timestamps.
+
     Raises
     ------
     TypeError
@@ -107,8 +108,7 @@ def unpack_binary_data_with_absolute_timestamps(
     firmware_version: str,
     timestamps: int = 512,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Unpacks binary-encoded data from LinoSPAD2 firmware version 2212
-    with absolute timestamps.
+    """Unpack LinoSPAD2 firmware 2212 data with absolute timestamps.
 
     Parameters
     ----------

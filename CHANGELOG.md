@@ -5,6 +5,191 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [1.5.0] - 2026-08-31
+
+### Added
+
+- `scan_window` in `calculate_and_save_timestamp_differences_full_sensor_alt`
+  (default 1e6, i.e. +-1 us): half-width of the window used while locating the
+  coarse board-to-board offset. It is separate from `delta_window`, which now
+  only sets how much is kept around the located offset.
+
+- The located cross-board alignment is reported back. The function returns a
+  dictionary with `feather` (path to the saved file), `cycle_lag_N`,
+  `delta_epoch_ps`, `delta_epoch_s` and `pair_counts` (differences saved per
+  pixel pair), and prints the lag it settled on together with the coincidence
+  count and its significance.
+
+- Guards that fail loudly instead of quietly saving an empty table:
+  `RuntimeError` if the absolute-timestamp counters are not monotonic across
+  the run (a board power-cycled mid-run), if the requested pixels hold no
+  photons, or if no coincidence peak reaches 5 sigma above the baseline of the
+  neighbouring lags. A warning is printed when the sub-cycle phase between the
+  boards is not constant.
+
+- `calculate_differences_1v1` and
+  `calculate_and_save_timestamp_differences_1v1` raise `TypeError` when given a
+  flat list of pixels. A flat list means "all combinations" and cannot be split
+  into explicit 1-to-1 pairs, which used to fail further in with a much less
+  obvious message.
+
+### Changed
+
+- The tests run on matplotlib's headless `Agg` backend, set in
+  `tests/conftest.py`. Unpickling a saved figure builds a canvas for whatever
+  backend is current; on Windows matplotlib picks `TkAgg`, and the Tcl/Tk
+  shipped with the hosted CI runners is incomplete - Python 3.13 there fails
+  with "Can't find a usable tk.tcl". Linux has no display and had been falling
+  back to `Agg` on its own, which is why only the Windows jobs were affected.
+
+- The lint gate is clean: 220 ruff violations across the package are fixed.
+  Beyond the bugs listed under Fixed, this is `typing.List`/`Union` replaced by
+  PEP 585/604 built-in generics, f-strings for `.format` calls, unused imports
+  dropped, numpydoc section formatting corrected, and docstrings added for the
+  two packages and `MpWizard`. `archive/` and the example notebooks are
+  excluded, and the unittest-based suite is exempt from the docstring rules.
+  Computations that are deliberately kept but unused carry `# noqa: F841` with
+  a reason rather than being deleted.
+
+- CI runs the test suite with pytest directly instead of through tox. `*.ini`
+  in `.gitignore` had kept `tox.ini` out of the repository, so `tox -r` found
+  no configuration, ran nothing and still exited 0 - every "Test with tox" job
+  had been passing without executing a single test.
+
+- `tests/test_data/test.feather` is tracked. The six `fit_with_gaussian_*`
+  tests read it, and it cannot be rebuilt from the other test data - pixel pair
+  82,116 has no coincidences in `test_data_2212b.dat`, which yields about 700
+  across all pairs put together. Leaving it untracked meant those six could
+  never run on a fresh checkout, so the whole suite now runs in CI.
+
+- `MANIFEST.in` prunes `tests/test_data` from the sdist. The two fixtures come
+  to 40 MB, and shipping them to everyone who installs from PyPI serves no
+  purpose - the sdist gets smaller than it was before the fixture was added.
+
+-`calculate_and_save_timestamp_differences_full_sensor_alt` is
+  rewritten around a single global board-to-board offset.** The two boards are
+  taken to share an external clock but no trigger (CLK_IN/J11 only), so each
+  FPGA's free-running 133.333 MHz absolute-timestamp counter (7.5 ns per tick)
+  starts at its own power-up moment and the two are related by one constant,
+  Delta_epoch. Every requested pixel's photons are pooled onto each board's
+  continuous timeline, the integer cycle lag that maximizes coincidences within
+  `scan_window` fixes Delta_epoch, and all differences within `delta_window` of
+  it are then kept per pixel pair. This replaces the old per-cycle scheme,
+  which looked for the first cycle above `threshold` on each board, paired
+  cycles by index from there, corrected each cycle from its own absolute
+  timestamps, and estimated the epoch offset from a histogram of whichever
+  pixel pair happened to have data first.
+
+- `threshold`, `apply_mask` and `epoch_offset_ps` are gone and `scan_window` is
+  new (see Removed), and it returns the alignment dictionary described above
+  instead of the epoch offset as a float. Only firmware versions "2212s" and
+  "2212b" are offered in the error message now; "2208" was never supported
+  here.
+
+- `pixels` accepts two lists of any length, `[[left, ...], [right, ...]]`,
+  rather than one pixel per sensor half; a plain `[left, right]` still works.
+  Right-half pixels are given as full-sensor indices (256..511) and remapped to
+  raw pixels on the second board by the new `_remap_full_sensor_pixel` helper.
+
+- Each data file is unpacked once instead of once per pixel pair, and the
+  differences are gathered with `numpy.searchsorted` in blocks instead of a
+  Python loop over cycles and timestamps.
+
+- Data files are collected without `os.chdir` and sorted by name instead of
+  modification time. File names are timestamped, so this matches acquisition
+  order and agrees with the '.feather' name the fit functions reconstruct.
+  Results go into one '.feather' file written at the end, instead of numbered
+  per-file chunks concatenated and deleted afterwards.
+
+- `collect_and_plot_timestamp_differences` no longer forces `figsize=(16, 10)`
+  on the single-pair figure, so the house style's figure size applies there
+  too.
+
+- **The package version now comes from the git tag**, via `setuptools_scm`.
+  `pyproject.toml` no longer carries a `version = "..."` line, so creating the
+  release tag *is* the version bump. `daplis.__version__` reads it back from
+  the installed distribution, and the Sphinx docs take their `release` from the
+  same place instead of a hardcoded string.
+
+- **Releases are cut by publishing a GitHub Release**, not by pushing to
+  `main`. The auto-tagging `release.yml` is gone; `publish.yml` now gates the
+  whole pipeline on the tag having a matching `CHANGELOG.md` section, lints and
+  tests before building, verifies the built version matches the tag, and fills
+  the release body from the changelog. See "Versioning and releases" in the
+  README.
+
+- Ruff replaces ad-hoc style checking as the lint gate: `[tool.ruff]` in
+  `pyproject.toml` configures it (pycodestyle, pyflakes, isort, pyupgrade,
+  bugbear and numpy-convention pydocstyle), and CI runs `ruff check .` on every
+  push as well as before a release.
+
+- The bundled `daplis.mplstyle` now lives in
+  [komorebi_mpl](https://github.com/rngKomorebi/komorebi_mpl) as the registered
+  `daplis` style, so it shares one source of truth with the other house styles.
+  `komorebi_mpl>=0.0.5` is now a dependency.
+
+- The style is applied on import via `komorebi_mpl.apply_default("daplis")`
+  instead of an unconditional `plt.style.use`. An explicit
+  `komorebi_mpl.use(...)` in your own script now wins, whatever the import
+  order. `daplis.style_path` still works and points at the bundled sheet.
+
+- Following that move, daplis plots pick up the house treatment: outward-facing
+  ticks with minor ticks, a grid, and the shared typography scale. The
+  colorblind-accessible eight-colour cycle is unchanged.
+
+### Fixed
+
+- `unpickle_plot`, `unpickle_fit` and `unpickle_sensor_plot` caught
+  `FileNotFoundError`, printed it, and then went on to use the figure, so a
+  missing pickle surfaced as `UnboundLocalError: cannot access local variable
+  'fig'` several lines later rather than naming the file. They now raise
+  `FileNotFoundError` with the path, which is what their docstrings already
+  promised.
+
+- `fit_with_gaussian_full_sensor` used `bins_coarse` two lines before it was
+  assigned, so the function raised `NameError` on every call. The offending
+  pair of lines was a leftover duplicate of the coarse-histogram block that
+  follows them, and the surviving block also runs after the "too few
+  differences" guard rather than before it.
+
+- `collect_and_plot_timestamp_differences_shared_feather` raised `NameError`
+  for more than two pixels: the multi-pixel branch passed `chosen_color` to
+  `hist`, where the parameter is called `color`.
+
+- Three `except FileNotFoundError` branches in `fits.py` did `raise ("...")`,
+  which raises a `str`. Python turned that into `TypeError: exceptions must
+  derive from BaseException`, hiding the missing 'delta_ts_data' folder behind
+  an unrelated error. They now raise `FileNotFoundError`, and every re-raise in
+  the package chains its cause with `raise ... from exc`.
+
+- `unpack_calibration_data` averaged the TDC calibration csv files by dividing
+  by `i + 1`, reading the loop variable after the loop. It now divides by
+  `len(files_csv)`, which is also defined when the folder holds no csv files.
+
+- `MpWizard` used a mutable default argument (`pixels: list = []`), shared
+  across every instance that did not pass `pixels`.
+
+- `calculate_differences` dropped every pixel pair whose right-hand index was
+  not greater than the left-hand one (`if w <= q: continue`). A full-sensor
+  call whose right list holds lower indices than its left therefore returned
+  nothing at all for those pairs. Pairs are now skipped only when both pixels
+  are the same, each pair is emitted once under a canonical key - `"a,b"`
+  always means `t_b - t_a` with `a < b` - and pairs repeated by overlapping
+  input lists are de-duplicated.
+
+### Removed
+
+- `threshold` and `apply_mask` from
+  `calculate_and_save_timestamp_differences_full_sensor_alt`. The global
+  alignment needs no threshold to pick a reference cycle, and `apply_mask` was
+  accepted and documented but never used - it only ever sat next to a "TODO add
+  check for masked/noisy pixels".
+
+- `epoch_offset_ps` from the same function. The offset is always measured from
+  the data now, so there is nothing to pass in or to carry over from a previous
+  run; the value that was used comes back in the returned dictionary instead.
+
 ## [1.4.5] - 2026-07-10
 
 Working on full sensor function, trying to synchronize the two boards.
@@ -268,3 +453,19 @@ the start of the function call and before the inital data unpacking.
 - Unused "mask_NL11_all.txt".
 - Unused masks in "params/masks/old".
 - Test leftovers in "tests/test_data/results".
+
+[Unreleased]: https://github.com/rngKomorebi/daplis/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/rngKomorebi/daplis/compare/v1.4.5...v1.5.0
+[1.4.5]: https://github.com/rngKomorebi/daplis/compare/v1.4.4...v1.4.5
+[1.4.4]: https://github.com/rngKomorebi/daplis/compare/v1.4.3...v1.4.4
+[1.4.3]: https://github.com/rngKomorebi/daplis/compare/v1.4.2...v1.4.3
+[1.4.2]: https://github.com/rngKomorebi/daplis/compare/v1.4.1...v1.4.2
+[1.4.1]: https://github.com/rngKomorebi/daplis/compare/v1.4.0...v1.4.1
+[1.4.0]: https://github.com/rngKomorebi/daplis/compare/v1.3.1...v1.4.0
+[1.3.1]: https://github.com/rngKomorebi/daplis/compare/v1.3.0...v1.3.1
+[1.3.0]: https://github.com/rngKomorebi/daplis/compare/v1.2.0...v1.3.0
+[1.2.0]: https://github.com/rngKomorebi/daplis/compare/v1.1.2...v1.2.0
+[1.1.2]: https://github.com/rngKomorebi/daplis/compare/v1.1.1...v1.1.2
+[1.1.1]: https://github.com/rngKomorebi/daplis/compare/v1.0.1...v1.1.1
+[1.0.1]: https://github.com/rngKomorebi/daplis/compare/v0.9.0...v1.0.1
+[0.9.0]: https://github.com/rngKomorebi/daplis/releases/tag/v0.9.0

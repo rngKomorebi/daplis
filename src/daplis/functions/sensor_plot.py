@@ -32,20 +32,20 @@ import glob
 import os
 import pickle
 import sys
-from typing import List
 
 import numpy as np
-from daplis.functions import unpack as f_up
-from daplis.functions import utils
 from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
 from scipy.optimize import curve_fit
 from scipy.signal import find_peaks
 from tqdm import tqdm
 
+from daplis.functions import unpack as f_up
+from daplis.functions import utils
+
 
 def collect_data_and_apply_mask(
-    files: List[str] | str,
+    files: list[str] | str,
     daughterboard_number: str,
     motherboard_number: str,
     firmware_version: str,
@@ -284,7 +284,7 @@ def plot_single_pix_hist(
             pixels = np.arange(145, 165, 1)
 
         for i, _ in enumerate(pixels):
-            plt.figure(figsize=(16, 10))
+            plt.figure()
             # Define matrix of pixel coordinates, where rows are numbers
             # of TDCs and columns are the pixels that connected to
             # these TDCs
@@ -402,7 +402,7 @@ def plot_sensor_population(
     None.
 
     Examples
-    -------
+    --------
     An example how the function can be used to get the sensor
     occupation from a single file while looking for peaks - the most
     quick and straightforward approach to find where the beams were
@@ -471,7 +471,7 @@ def plot_sensor_population(
     # Plotting rates
     print("\n> > > Plotting < < <\n")
 
-    fig_rates = plt.figure(figsize=(16, 10))
+    fig_rates = plt.figure()
     fig_rates.subplots_adjust(top=0.94, right=0.93)
     if y_scale == "log":
         plt.yscale("log")
@@ -520,7 +520,7 @@ def plot_sensor_population(
         plt.legend(loc="best")
 
     # Plotting photons
-    fig_photons = plt.figure(figsize=(16, 10))
+    fig_photons = plt.figure()
     fig_photons.subplots_adjust(top=0.94, right=0.93)
     if y_scale == "log":
         plt.yscale("log")
@@ -849,7 +849,6 @@ def plot_sensor_population_full_sensor(
 
     Notes
     -----
-
     As the pixel addressing is incorrect for one of the sensor halves
     (depends on the daughterboard-motherboards combinatios; in NL11, for
     motherboard #21 pixel addressing should be applied), it is important
@@ -956,7 +955,7 @@ def plot_sensor_population_full_sensor(
     print("\n> > > Plotting < < <\n")
 
     # Plotting rates
-    fig_rates = plt.figure(figsize=(16, 10))
+    fig_rates = plt.figure()
     fig_rates.subplots_adjust(top=0.94, right=0.93)
     if y_scale == "log":
         plt.yscale("log")
@@ -997,7 +996,7 @@ def plot_sensor_population_full_sensor(
         plt.legend(loc="best")
 
     # Plotting photons
-    fig_photons = plt.figure(figsize=(16, 10))
+    fig_photons = plt.figure()
     fig_photons.subplots_adjust(top=0.94, right=0.93)
     if y_scale == "log":
         plt.yscale("log")
@@ -1100,8 +1099,10 @@ def unpickle_plot(plot_pickle_file: str) -> dict:
     try:
         with open(plot_pickle_file, "rb") as f:
             fig = pickle.load(f)
-    except FileNotFoundError as e:
-        print(f" {e}")
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(
+            f"Pickled plot '{plot_pickle_file}' was not found"
+        ) from exc
 
     # Pack the data into a dictionary, first is the histogram, others
     # are the fits

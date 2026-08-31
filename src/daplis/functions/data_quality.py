@@ -128,7 +128,6 @@ def sensor_population_by_cycle(
         Tuple containing the sensor population array and the list of
         absolute timestamps.
     """
-
     os.chdir(path)
 
     files_all = glob.glob("*.dat*")
@@ -219,10 +218,9 @@ def sensor_population_by_cycle(
         ].min()
         cycle_range = [x for x in range(cycle_start - 3, cycle_start + 3)]
 
-    plt.rcParams.update({"font.size": 27})
     for _, cycle in enumerate(cycle_range):
-        fig = plt.figure(figsize=(16, 10))
-        plt.plot(sensor_population[:, cycle], "-.", color="rebeccapurple")
+        fig = plt.figure()
+        plt.plot(sensor_population[:, cycle], "-.")
         plt.xlabel("Pixel index (-)")
         plt.ylabel("Sensor population (-)")
         plt.title(f"Cycle {cycle}")
@@ -245,12 +243,10 @@ def pixel_population_by_cycle(
     include_offset: bool = False,
     apply_calibration: bool = True,
     absolute_timestamps: bool = False,
-    color: str = "rebeccapurple",
+    color: str | None = None,
 ):
     """
     Collect and plot pixel population data by acquisition cycle.
-
-
 
     Parameters
     ----------
@@ -360,13 +356,11 @@ def pixel_population_by_cycle(
         )
         os.chdir(os.path.join(path, "results", "data_quality", "pixpop_cycle"))
 
-    plt.rcParams.update({"font.size": 27})
-    plt.figure(figsize=(16, 10))
+    plt.figure()
     plt.plot(pixel_pop, "-.", color=color, label="Pixel population")
     plt.plot(
         range(offset, len(moving_average) + offset),
         moving_average,
-        color="darkorange",
         label="Average in 100 cycles",
     )
     plt.xlabel("Acquisition cycle (-)")
@@ -391,9 +385,10 @@ def get_time_ratios(
     include_offset: bool = False,
     apply_calibration: bool = True,
 ):
-    """
-    Calculate the ratio of time of actual data collection and the time it
-    takes to create and save the files.
+    """Calculate the ratio of data-collection time to file-saving time.
+
+    Compares the time of actual data collection with the time it takes to
+    create and save the files.
 
     Parameters
     ----------
@@ -415,7 +410,6 @@ def get_time_ratios(
         calibration is applied. The default is True.
 
     """
-
     os.chdir(path)
 
     files = glob.glob("*.dat*")
@@ -458,7 +452,8 @@ def get_time_ratios(
     ratio_average = np.mean(ratios)
     error = np.std(ratios) / np.sqrt(len(ratios))
 
-    intercycle_time = [
+    # Per-cycle dead time, kept for inspection.
+    intercycle_time = [  # noqa: F841
         collecting_times[i] - number_of_cycles[i] * tp_max
         for i in range(len(collecting_times))
     ]
@@ -472,8 +467,8 @@ def save_file_times(path):
     """
     Save creation and modification times of data files into a .feather file.
 
-    Parameters:
-
+    Parameters
+    ----------
     path : str
         Path to the data files.
 
@@ -509,11 +504,10 @@ def save_file_times(path):
 
 
 def load_data_from_feather(path):
-    """
-    Loads the creation and modification time from feather file.
+    """Load the creation and modification time from a feather file.
 
-    Parameters:
-
+    Parameters
+    ----------
     path : str
         Path to the data files.
 
@@ -639,8 +633,6 @@ def sigma_of_count_spread_to_average(
 
     bin_centers = (bin_edges - 2.5 / 140 * 1e3 * step / 2)[1:]
 
-    plt.rcParams.update({"font.size": 27})
-
     try:
         os.chdir("results/bckg_spread")
     except Exception:
@@ -648,7 +640,7 @@ def sigma_of_count_spread_to_average(
         os.chdir("results/bckg_spread")
 
     # Background histogram
-    plt.figure(figsize=(16, 10))
+    plt.figure()
     plt.step(bin_centers, counts, color="tomato")
     plt.title(f"Histogram of delta ts\nBin size is {bins[1] - bins[0]:.2f} ps")
     plt.xlabel(r"$\Delta$t (ps)")
@@ -659,9 +651,9 @@ def sigma_of_count_spread_to_average(
     sns.jointplot(
         x=bin_centers, y=counts, height=10, marginal_kws=dict(bins=bins_sigma)
     )
-    plt.title("Histogram of delta ts with histograms of spread", fontsize=27)
-    plt.xlabel(r"$\Delta$t (ps)", fontsize=27)
-    plt.ylabel("# of coincidences (-)", fontsize=27)
+    plt.title("Histogram of delta ts with histograms of spread")
+    plt.xlabel(r"$\Delta$t (ps)")
+    plt.ylabel("# of coincidences (-)")
     plt.savefig(f"{ft_file_name}_bckg_hist_joint.png")
 
     # Histogram of the spread plus Gaussian fit
@@ -677,7 +669,7 @@ def sigma_of_count_spread_to_average(
 
     pars, covs = utils.fit_gaussian(bin_centers_spread, counts_spread)
 
-    fig, ax = plt.subplots(figsize=(16, 10))
+    fig, ax = plt.subplots()
     ax.step(
         bin_centers_spread,
         counts_spread,
@@ -700,7 +692,7 @@ def sigma_of_count_spread_to_average(
         0.9,
         f"\u03c3={pars[2]:.2f}\u00b1{np.sqrt(covs[2,2]):.2f}",
         transform=ax.transAxes,
-        fontsize=25,
+        fontsize="small",
         bbox=dict(
             facecolor="white", edgecolor="black", boxstyle="round,pad=0.5"
         ),
@@ -752,7 +744,6 @@ def sigma_of_count_spread_to_average_from_ft_file(
         Number of elements to add to the background spread histogram
         for a better fit. The default is 0, when no elements are added.
     """
-
     ft_file_name = ft_file.split(".")[0]
 
     os.chdir(path)
@@ -774,8 +765,6 @@ def sigma_of_count_spread_to_average_from_ft_file(
 
     bin_centers = (bin_edges - 2.5 / 140 * 1e3 * step / 2)[1:]
 
-    plt.rcParams.update({"font.size": 27})
-
     try:
         os.chdir("results/bckg_spread")
     except FileNotFoundError:
@@ -783,7 +772,7 @@ def sigma_of_count_spread_to_average_from_ft_file(
         os.chdir("results/bckg_spread")
 
     # Background histogram
-    plt.figure(figsize=(16, 10))
+    plt.figure()
     plt.step(bin_centers, counts, color="tomato")
     plt.title(f"Histogram of delta ts\nBin size is {bins[1] - bins[0]:.2f} ps")
     plt.xlabel(r"$\Delta$t (ps)")
@@ -794,9 +783,9 @@ def sigma_of_count_spread_to_average_from_ft_file(
     sns.jointplot(
         x=bin_centers, y=counts, height=10, marginal_kws=dict(bins=bins_sigma)
     )
-    plt.title("Histogram of delta ts with histograms of spread", fontsize=27)
-    plt.xlabel(r"$\Delta$t (ps)", fontsize=27)
-    plt.ylabel("# of coincidences (-)", fontsize=27)
+    plt.title("Histogram of delta ts with histograms of spread")
+    plt.xlabel(r"$\Delta$t (ps)")
+    plt.ylabel("# of coincidences (-)")
     plt.savefig(f"{ft_file_name}_bckg_hist_joint.png")
 
     # Histogram of the spread plus Gaussian fit
@@ -814,7 +803,7 @@ def sigma_of_count_spread_to_average_from_ft_file(
 
     pars, covs = utils.fit_gaussian(bin_centers_spread, counts_spread)
 
-    fig, ax = plt.subplots(figsize=(16, 10))
+    fig, ax = plt.subplots()
     ax.step(
         bin_centers_spread,
         counts_spread,
@@ -837,7 +826,7 @@ def sigma_of_count_spread_to_average_from_ft_file(
         0.9,
         f"\u03c3={pars[2]:.2f}\u00b1{np.sqrt(covs[2,2]):.2f}",
         transform=ax.transAxes,
-        fontsize=25,
+        fontsize="small",
         bbox=dict(
             facecolor="white", edgecolor="black", boxstyle="round,pad=0.5"
         ),

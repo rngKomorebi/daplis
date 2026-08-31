@@ -1,29 +1,147 @@
 name: Publish to PyPI
 
+# Fires when you publish a release on the GitHub web UI (Releases -> Draft a
+# new release -> create the tag there -> Publish release). Creating the tag is
+# the only version bump needed: setuptools_scm derives the package version from
+# it, so nothing in the repo records a version number.
 on:
   release:
     types: [published]
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Build distribution
+  check:
+    name: Check tag against CHANGELOG
     runs-on: ubuntu-latest
-    if: github.repository == 'rngKomorebi/daplis'
-
+    # Deliberately publishes no outputs: every job derives the version from
+    # github.event.release.tag_name itself. Cross-job outputs fail silently as
+    # empty strings when the `needs` wiring is wrong.
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          fetch-depth: 0
 
-      - name: Install build dependencies
-        run: python -m pip install --upgrade pip build
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-      - name: Build package
+      # A tag-triggered run executes the workflow file stored at the TAGGED
+      # commit, not the one on main. If the tag is stale, you are debugging a
+      # version of this file that no longer exists on main - so say so loudly.
+      # Note that deleting a GitHub Release does NOT delete its tag: re-creating
+      # a release with the same name silently reuses the old tag and commit.
+      - name: Report which commit this release is built from
+        # Diagnostic only - must never fail the release.
+        continue-on-error: true
+        run: |
+          echo "tag    : ${GITHUB_REF_NAME}"
+          echo "commit : ${GITHUB_SHA}"
+          if git fetch origin "${{ github.event.repository.default_branch }}" --quiet; then
+            behind=$(git rev-list --count "${GITHUB_SHA}..FETCH_HEAD" 2>/dev/null || echo "?")
+            echo "behind ${{ github.event.repository.default_branch }} by: $behind commit(s)"
+            if [ "$behind" != "?" ] && [ "$behind" -gt 0 ]; then
+              echo "::warning::This tag is $behind commit(s) behind the default branch," \
+                   "so this run uses the workflow files as they were at ${GITHUB_SHA}," \
+                   "not the current ones."
+            fi
+          fi
+
+      - name: Derive version from the release tag
+        id: version
+        run: |
+          tag="${{ github.event.release.tag_name }}"
+          version="${tag#v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([abrc.].*)?$ ]]; then
+            echo "::error::Tag '$tag' is not a valid version tag." \
+                 "Use vMAJOR.MINOR.PATCH, e.g. v0.1.0."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # Fails the release if CHANGELOG.md has no section for this version, so
+      # a tag can never ship without its entry.
+      - name: Extract release notes
+        run: |
+          python tools/changelog.py "${{ steps.version.outputs.version }}" \
+            > release-notes.md
+          cat release-notes.md
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes.md
+
+  test:
+    name: Test before release
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install the package with test extras
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
+
+      - name: Lint
+        run: python -m ruff check .
+
+      - name: Run tests
+        run: python -m pytest -q
+
+  build:
+    name: Build distribution
+    # Gate on 'check' so a tag with no CHANGELOG entry never gets built.
+    needs: [check, test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # setuptools_scm reads the tag the release was cut from.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tooling
+        run: python -m pip install --upgrade build twine
+
+      - name: Build sdist and wheel
         run: python -m build
+
+      - name: Check distribution metadata
+        run: twine check dist/*
+
+      # The built version comes from the tag via setuptools_scm. If it does not
+      # match, the checkout is not sitting exactly on the tagged commit and the
+      # artifact would carry a '.dev0+g<sha>' local version PyPI rejects.
+      #
+      # The tag is read straight from the event rather than through
+      # needs.check.outputs: a cross-job output resolves to an empty string
+      # when the `needs` wiring is wrong, and "" then compares unequal to
+      # everything, which reads as a version mismatch rather than as the
+      # plumbing bug it is.
+      - name: Verify built version matches the tag
+        run: |
+          tag="${{ github.event.release.tag_name }}"
+          if [ -z "$tag" ]; then
+            echo "::notice::Manual run with no release tag - skipping version check."
+            exit 0
+          fi
+          expected="${tag#v}"
+          built=$(ls dist/*.tar.gz | sed -E 's|.*-([^-]+)\.tar\.gz$|\1|')
+          echo "tag says: $expected / built: $built"
+          if [ "$built" != "$expected" ]; then
+            echo "::error::Built version '$built' does not match tag '$tag'."
+            echo "A '.devN+g<sha>' suffix means the checkout is not on the tagged"
+            echo "commit, so setuptools_scm counted commits past the last tag."
+            exit 1
+          fi
 
       - name: Upload distribution artifacts
         uses: actions/upload-artifact@v4
@@ -39,8 +157,7 @@ jobs:
       name: pypi
       url: https://pypi.org/p/daplis
     permissions:
-      id-token: write  # required for trusted publishing (OIDC)
-
+      id-token: write  # required for PyPI trusted publishing (OIDC)
     steps:
       - name: Download distribution artifacts
         uses: actions/download-artifact@v4
@@ -50,3 +167,30 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+
+  release-notes:
+    name: Fill release notes from CHANGELOG
+    needs: [check, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # editing the release body
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-notes
+
+      - name: Update the release body
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          VERSION="${TAG#v}"
+          {
+            cat release-notes.md
+            echo
+            echo "---"
+            echo "Install: \`pip install daplis==$VERSION\`"
+          } > body.md
+          gh release edit "$TAG" \
+            --repo "${{ github.repository }}" \
+            --notes-file body.md

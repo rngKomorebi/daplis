@@ -50,7 +50,6 @@ import pickle
 import sys
 import time
 from glob import glob
-from typing import List, Union
 
 import matplotlib
 import numpy as np
@@ -76,7 +75,6 @@ def apply_mask(
     mask : np.ndarray
         The mask array generated from the given daughterboard and motherboard numbers.
     """
-
     path_to_back = os.getcwd()
     path_to_mask = os.path.join(
         os.path.dirname(os.path.realpath(__file__)),
@@ -215,32 +213,57 @@ def fit_gaussian(x, y, p0=None, bounds=None):
 
 
 def pixel_list_transform(pixels: list):
-    """Transform a list of pixels into two separate lists.
+    """Transform the pixel input into a left and a right list.
 
-    Transform the given list of pixels into two separate lists,
-    based on the input type (list of integers, of lists, or a mix of
-    both).
+    Two input forms are accepted:
 
-    Parameters:
+    * a flat list of pixel numbers - all combinations of those pixels
+      are requested, so both returned lists are the full input list;
+    * a list of two lists - the pixels of the first list are paired
+      against the pixels of the second one (peak vs. peak).
+
+    A mix of an integer and a list is treated as the two-group form,
+    with the integer as a group of its own.
+
+    Parameters
+    ----------
         pixels : list
-            A list of pixels.
+            A list of pixel numbers or a list of two lists of pixel
+            numbers.
 
-    Returns:
+    Returns
+    -------
         list: A list of the left pixels.
         list: A list of the right pixels.
     """
+    if not pixels:
+        raise ValueError("'pixels' should not be empty")
 
-    if isinstance(pixels[0], list) and isinstance(pixels[1], list) is True:
-        pixels_left, pixels_right = sorted(pixels)
-    elif isinstance(pixels[0], int) and isinstance(pixels[1], list) is True:
-        pixels_left, pixels_right = sorted([[pixels[0]], pixels[1]])
-    elif isinstance(pixels[0], list) and isinstance(pixels[1], int) is True:
-        pixels_left, pixels_right = sorted([pixels[0], [pixels[1]]])
-    elif isinstance(pixels[0], int) and isinstance(pixels[1], int) is True:
-        pixels_left = [pixels[0]]
-        pixels_right = [pixels[1]]
+    def _is_int(value):
+        return isinstance(value, (int, np.integer)) and not isinstance(
+            value, bool
+        )
 
-    return [pixels_left, pixels_right]
+    def _to_list(group):
+        if _is_int(group):
+            return [int(group)]
+        return sorted({int(pixel) for pixel in group})
+
+    # A flat list of pixel numbers: every combination among them
+    if all(_is_int(pixel) for pixel in pixels):
+        if len(pixels) < 2:
+            raise ValueError("at least two pixels are needed for a pair")
+        all_pixels = sorted({int(pixel) for pixel in pixels})
+        return [all_pixels, list(all_pixels)]
+
+    # Two groups of pixels: the first one against the second one
+    if len(pixels) != 2:
+        raise TypeError(
+            "'pixels' should be a flat list of pixel numbers or a list "
+            f"of exactly two lists, got {len(pixels)} elements"
+        )
+
+    return [_to_list(pixels[0]), _to_list(pixels[1])]
 
 
 def __correct_pix_address(pix: int):
@@ -267,7 +290,7 @@ def __correct_pix_address(pix: int):
 
 
 # def correct_pixels_address(pixels: List[int] | List[List[int]]):
-def correct_pixels_address(pixels: Union[List[int], List[List[int]]]):
+def correct_pixels_address(pixels: list[int] | list[list[int]]):
     """Correct pixel address for all given pixels.
 
     Return the list with the same dimensions as the input.

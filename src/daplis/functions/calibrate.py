@@ -38,17 +38,10 @@ from __future__ import annotations
 
 import glob
 import os
-import sys
-import time
-from math import ceil
 
 import numpy as np
 import pandas as pd
-from pyarrow import feather as ft
-from scipy.optimize import curve_fit
 from tqdm import tqdm
-
-from daplis.functions import calc_diff as cd
 
 # TODO update the functions, similar to delta_t ones
 
@@ -98,7 +91,6 @@ def calibrate_and_save_TDC_data(
     {mb}, and {fw_ver} represent the daughterboard number, motherboard
     number, and firmware version, respectively.
     """
-
     # Parameter type check
     if not isinstance(daughterboard_number, str):
         raise TypeError("'daughterboard_number' should be a string.")
@@ -217,10 +209,10 @@ def calibrate_and_save_TDC_data(
 
     data_csv = np.zeros((256, 140))
 
-    for i, file_csv in enumerate(files_csv):
+    for file_csv in files_csv:
         data_csv += pd.read_csv(file_csv, index_col=0)
 
-    data_csv = data_csv / (i + 1)
+    data_csv = data_csv / len(files_csv)
 
     # Save the averaged matrix of calibration data into a '.csv' file
     data_csv.to_csv(
@@ -827,7 +819,6 @@ def load_calibration_data(
         Array of 256 offset values, one for each pixel. Returned only if
         include_offset is True.
     """
-
     path_to_backup = os.getcwd()
     os.chdir(calibration_path)
 
@@ -850,10 +841,10 @@ def load_calibration_data(
                 f"*Offset_{daughterboard_number}_{motherboard_number}"
                 f"_{firmware_version}*"
             )[0]
-        except IndexError:
+        except IndexError as exc:
             raise FileNotFoundError(
                 "No .npy file with offset calibration data was found"
-            )
+            ) from exc
         offset_arr = np.load(file_offset)
 
     # Skipping the first row of TDC bins' numbers

@@ -149,7 +149,7 @@ class TestPlotScripts(unittest.TestCase):
 
     def tearDownClass():
         # Clean up after tests
-        os.chdir(r"{}".format(os.path.dirname(os.path.realpath(__file__))))
+        os.chdir(rf"{os.path.dirname(os.path.realpath(__file__))}")
         shutil.rmtree("test_data/results")
 
 

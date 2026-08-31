@@ -35,7 +35,6 @@ import glob
 import os
 import pickle
 import sys
-from typing import List
 
 import matplotlib
 import numpy as np
@@ -47,14 +46,13 @@ from tqdm import tqdm
 
 from daplis.functions import calc_diff as cd
 from daplis.functions import calibrate as cb
-from daplis.functions import sensor_plot
+from daplis.functions import sensor_plot, utils
 from daplis.functions import unpack as f_up
-from daplis.functions import utils
 
 
 def _collect_cross_talk(
     path: str,
-    pixels: List[int],
+    pixels: list[int],
     rewrite: bool,
     daughterboard_number: str,
     motherboard_number: str,
@@ -119,7 +117,6 @@ def _collect_cross_talk(
         - `rewrite` is not boolean,
         - `daughterboard_number` is not a string.
     """
-
     # parameter type check
     if isinstance(pixels, list) is False:
         raise TypeError(
@@ -253,11 +250,11 @@ def _collect_cross_talk(
                         firmware_version,
                         include_offset,
                     )
-            except FileNotFoundError:
+            except FileNotFoundError as exc:
                 raise FileNotFoundError(
                     "No .csv file with the calibration data was found. "
                     "Check the path or run the calibration."
-                )
+                ) from exc
 
             for i in [x for sublist in pixels_formatted for x in sublist]:
                 # Transform pixel number to TDC number and pixel coordinates in
@@ -336,7 +333,7 @@ def _collect_cross_talk(
 
 def _plot_cross_talk_peaks(
     path: str,
-    pixels: List,
+    pixels: list,
     multiplier: int,
     window: float = 50e3,
     senpop: list = None,
@@ -383,7 +380,6 @@ def _plot_cross_talk_peaks(
         pixel, where the first dictionary contains cross-talk
         probabilities and the second - the corresponding errors.
     """
-
     os.chdir(path)
     if feather_file_name == "":
         files_all1 = glob.glob("*.dat")
@@ -475,7 +471,7 @@ def _plot_cross_talk_peaks(
                 / (aggressor_pix_tmsps + victim_pix_tmsps)
             )
 
-        fig = plt.figure(figsize=(16, 10))
+        fig = plt.figure()
         fig.subplots_adjust(top=0.94, right=0.93)
         plt.step(bin_centers, counts, label="Data")
         plt.plot(
@@ -547,7 +543,6 @@ def _plot_cross_talk_grid(
     show_plots : bool, optional
         Switch for showing the plots at the end. The default is False.
     """
-
     os.chdir(path)
     if feather_file_name == "":
         files_all1 = glob.glob("*.dat")
@@ -562,7 +557,7 @@ def _plot_cross_talk_grid(
         0
     ]
 
-    fig, axes = plt.subplots(4, 5, figsize=(16, 10))
+    fig, axes = plt.subplots(4, 5)
     fig.subplots_adjust(top=0.94, right=0.93)
 
     for i, pix in enumerate(pixels[1:]):
@@ -651,8 +646,8 @@ def _plot_cross_talk_grid(
             axes[3, i % 5].set_yticks([])
             axes[3, i % 5].set_title(f"{pixels[0]},{pix}")
 
-    axes[1, 2].set_xlabel("\u0394t (ps)", fontsize=26)
-    fig.text(0, 0.25, "# of coincidences (-)", fontsize=26, rotation=90)
+    axes[1, 2].set_xlabel("\u0394t (ps)")
+    fig.text(0, 0.25, "# of coincidences (-)", rotation=90, fontsize="small")
 
     # Make plots tight
     plt.tight_layout()
@@ -707,7 +702,6 @@ def collect_dcr_by_file(
     TypeError
         Raised if the motherboard number given is not recognized.
     """
-
     # Parameter type check
     if not isinstance(firmware_version, str):
         raise TypeError(
@@ -836,7 +830,6 @@ def plot_dcr_histogram_and_stability(
     FileNotFoundError
         Raised if the .pkl file with the DCR data was not found.
     """
-
     os.chdir(path)
 
     # Collect all files in the given folder
@@ -849,20 +842,22 @@ def plot_dcr_histogram_and_stability(
 
     try:
         os.chdir("dcr_data")
-    except FileNotFoundError:
-        raise FileNotFoundError("The folder with DCR data was not found.")
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(
+            "The folder with DCR data was not found."
+        ) from exc
 
     try:
         with open(file_with_dcr, "rb") as f:
             data = pickle.load(f)
-    except FileNotFoundError:
-        raise FileNotFoundError(f"{file_with_dcr} was not found")
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(f"{file_with_dcr} was not found") from exc
 
     # Median DCR over the whole sensor
     dcr_median = np.median(data)
 
     # Plot the DCR stability graph: median DCR vs file
-    fig = plt.figure(figsize=(16, 10))
+    fig = plt.figure()
     fig.subplots_adjust(top=0.94, right=0.93)
     plt.plot(
         [x + 1 for x in range(len(data))],
@@ -891,7 +886,7 @@ def plot_dcr_histogram_and_stability(
     bin_centers = (bin_edges - (bin_edges[1] - bin_edges[0]) / 2)[1:]
 
     # Plot the histogram
-    fig, ax = plt.subplots(figsize=(16, 10))
+    fig, ax = plt.subplots()
     ax.bar(
         bin_centers,
         hist,
@@ -919,7 +914,7 @@ def plot_dcr_histogram_and_stability(
 
 def _calculate_and_plot_cross_talk(
     path: str,
-    pixels: List,
+    pixels: list,
     multiplier: int,
     delta_window: float,
     senpop,
@@ -966,7 +961,6 @@ def _calculate_and_plot_cross_talk(
         pixel, where the first dictionary contains cross-talk
         probabilities and the second - the corresponding errors.
     """
-
     ct = []
     ct_err = []
 
@@ -1020,7 +1014,6 @@ def _plot_cross_talk_vs_distance(
     show_plots : bool, optional
         Switch for showing the plots at the end. The default is False.
     """
-
     try:
         os.chdir(os.path.join(path, "ct_vs_distance"))
     except FileNotFoundError:
@@ -1040,7 +1033,7 @@ def _plot_cross_talk_vs_distance(
             # Extract the difference and append it to the list
             differences.append(key_tuple[1] - key_tuple[0])
 
-        fig = plt.figure(figsize=(16, 10))
+        fig = plt.figure()
         fig.subplots_adjust(top=0.94, right=0.93)
         plt.errorbar(
             differences,
@@ -1104,7 +1097,6 @@ def _plot_average_cross_talk_vs_distance(
         Dictionary of average cross-talk numbers and error with distance
         from the aggressor as keys.
     """
-
     try:
         os.chdir(os.path.join(path, "ct_vs_distance"))
     except FileNotFoundError:
@@ -1137,7 +1129,7 @@ def _plot_average_cross_talk_vs_distance(
         )
         final_result_averages[key].append((value, error))
 
-    fig = plt.figure(figsize=(16, 10))
+    fig = plt.figure()
     fig.subplots_adjust(top=0.94, right=0.93)
     plt.title("Average cross-talk probability")
     plt.xlabel("Distance in pixels (-)")
@@ -1162,7 +1154,7 @@ def _plot_average_cross_talk_vs_distance(
 
 def zero_to_cross_talk_collect(
     path: str,
-    pixels: List[int],
+    pixels: list[int],
     rewrite: bool,
     daughterboard_number: str,
     motherboard_number: str,
@@ -1216,7 +1208,6 @@ def zero_to_cross_talk_collect(
         Correct pixel address for the FPGA board on side 23. Here
         used to reverse the correction. The default is False.
     """
-
     # Define matrix of pixel coordinates, where rows are numbers of TDCs
     # and columns are the pixels that connected to these TDCs
     if firmware_version == "2212s":
@@ -1310,7 +1301,7 @@ def zero_to_cross_talk_collect(
 
 def zero_to_cross_talk_plot(
     path: str,
-    pixels: List[int],
+    pixels: list[int],
     delta_window: float = 50e3,
     multiplier: int = 10,
     show_plots: bool = False,
@@ -1354,7 +1345,6 @@ def zero_to_cross_talk_plot(
         Raised when no txt file with the sensor population data is
         found.
     """
-
     print("\n> > > Plotting cross-talk peaks and averages < < <\n")
     try:
         os.chdir(os.path.join(path, "ct_vs_distance"))
@@ -1372,11 +1362,11 @@ def zero_to_cross_talk_plot(
         os.chdir(os.path.join(path, "senpop_data"))
         senpop_data_txt = glob.glob("*.txt")[0]
         senpop = np.genfromtxt(senpop_data_txt)
-    except Exception as _:
+    except Exception as exc:
         raise FileNotFoundError(
             "Txt file with sensor population data is not found. Collect "
             "sensor population first."
-        )
+        ) from exc
 
     ct_right, ct_err_right = _calculate_and_plot_cross_talk(
         path,
@@ -1441,7 +1431,7 @@ def zero_to_cross_talk_plot(
         )
         on_both_average[np.abs(key)] = (ct_value_average, ct_error_average)
 
-    fig = plt.figure(figsize=(16, 10))
+    fig = plt.figure()
     fig.subplots_adjust(top=0.94, right=0.93)
     plt.title("Average cross-talk probability")
     plt.xlabel("Distance in pixels (-)")
@@ -1489,7 +1479,6 @@ def unpickle_cross_talk(
         - yerr : ndarray
             The y-error values associated with each data point.
     """
-
     # Read the '.pkl' file
     with open(pkl_file, "rb") as f:
         fig = pickle.load(f)
