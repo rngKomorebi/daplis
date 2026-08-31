@@ -120,6 +120,56 @@ pip install -e .
 For a fast introduction on how to use the package, please see the
 jupyter notebooks with examples on the main functions at "daplis/examples/".
 
+## Versioning and releases
+
+There is no version number to bump anywhere in the source tree: `setuptools_scm`
+derives it from the git tag, so **creating the tag is the version bump**.
+`daplis.__version__` reads it back from the installed distribution.
+
+The changelog is edited by hand, and it has to be edited *before* the tag
+exists - the workflow reads `CHANGELOG.md` as it was at the tagged commit, so
+notes still sitting under `[Unreleased]` cannot ship.
+
+1. In `CHANGELOG.md`, rename the `## [Unreleased]` heading, leaving an empty
+   `[Unreleased]` above it for the next cycle:
+
+   ```markdown
+   ## [Unreleased]
+
+   ## [1.5.0] - 2026-09-01
+   ```
+
+   and update the link definitions at the foot of the file:
+
+   ```markdown
+   [Unreleased]: https://github.com/rngKomorebi/daplis/compare/v1.5.0...HEAD
+   [1.5.0]: https://github.com/rngKomorebi/daplis/compare/v1.4.5...v1.5.0
+   ```
+
+   `python tools/changelog.py 1.5.0` prints exactly what the release notes will
+   say, and exits non-zero if the section is missing - run it before tagging.
+
+2. Merge that into `main`.
+3. On GitHub, *Releases -> Draft a new release*, create the tag `v1.5.0`
+   **there** - it must point at the commit from step 2 - and publish.
+
+Publishing runs `publish.yml`, which validates the tag, refuses to ship a
+version with no changelog entry, lints and runs the tests, checks the built
+version matches the tag, uploads to PyPI, and rewrites the release body from
+the changelog.
+
+If the changelog entry is missing, the run fails at the first job, so nothing
+is built and nothing reaches PyPI - no version number is lost. Fix the
+changelog, push, then **delete the tag as well as the release** before
+retrying: deleting a release leaves its tag behind, and re-creating one with
+the same name silently reuses that tag and its old commit. PyPI versions
+themselves cannot be reused, so a release that *does* upload is final.
+
+After a release, merge `main` back into `develop`. Tags are only visible to
+`setuptools_scm` from commits that descend from them, so a `develop` that has
+never seen the release commit keeps deriving versions from an older tag - a
+local build would report a *lower* version than the one already on PyPI.
+
 ## How to contribute
 
 This repo consists of two branches: 'main' serves as the release version

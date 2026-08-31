@@ -475,7 +475,7 @@ def _plot_cross_talk_peaks(
                 / (aggressor_pix_tmsps + victim_pix_tmsps)
             )
 
-        fig = plt.figure(figsize=(16, 10))
+        fig = plt.figure()
         fig.subplots_adjust(top=0.94, right=0.93)
         plt.step(bin_centers, counts, label="Data")
         plt.plot(
@@ -562,7 +562,7 @@ def _plot_cross_talk_grid(
         0
     ]
 
-    fig, axes = plt.subplots(4, 5, figsize=(16, 10))
+    fig, axes = plt.subplots(4, 5)
     fig.subplots_adjust(top=0.94, right=0.93)
 
     for i, pix in enumerate(pixels[1:]):
@@ -651,8 +651,8 @@ def _plot_cross_talk_grid(
             axes[3, i % 5].set_yticks([])
             axes[3, i % 5].set_title(f"{pixels[0]},{pix}")
 
-    axes[1, 2].set_xlabel("\u0394t (ps)", fontsize=26)
-    fig.text(0, 0.25, "# of coincidences (-)", fontsize=26, rotation=90)
+    axes[1, 2].set_xlabel("\u0394t (ps)")
+    fig.text(0, 0.25, "# of coincidences (-)", rotation=90, fontsize="small")
 
     # Make plots tight
     plt.tight_layout()
@@ -862,7 +862,7 @@ def plot_dcr_histogram_and_stability(
     dcr_median = np.median(data)
 
     # Plot the DCR stability graph: median DCR vs file
-    fig = plt.figure(figsize=(16, 10))
+    fig = plt.figure()
     fig.subplots_adjust(top=0.94, right=0.93)
     plt.plot(
         [x + 1 for x in range(len(data))],
@@ -891,7 +891,7 @@ def plot_dcr_histogram_and_stability(
     bin_centers = (bin_edges - (bin_edges[1] - bin_edges[0]) / 2)[1:]
 
     # Plot the histogram
-    fig, ax = plt.subplots(figsize=(16, 10))
+    fig, ax = plt.subplots()
     ax.bar(
         bin_centers,
         hist,
@@ -1040,7 +1040,7 @@ def _plot_cross_talk_vs_distance(
             # Extract the difference and append it to the list
             differences.append(key_tuple[1] - key_tuple[0])
 
-        fig = plt.figure(figsize=(16, 10))
+        fig = plt.figure()
         fig.subplots_adjust(top=0.94, right=0.93)
         plt.errorbar(
             differences,
@@ -1137,7 +1137,7 @@ def _plot_average_cross_talk_vs_distance(
         )
         final_result_averages[key].append((value, error))
 
-    fig = plt.figure(figsize=(16, 10))
+    fig = plt.figure()
     fig.subplots_adjust(top=0.94, right=0.93)
     plt.title("Average cross-talk probability")
     plt.xlabel("Distance in pixels (-)")
@@ -1441,7 +1441,7 @@ def zero_to_cross_talk_plot(
         )
         on_both_average[np.abs(key)] = (ct_value_average, ct_error_average)
 
-    fig = plt.figure(figsize=(16, 10))
+    fig = plt.figure()
     fig.subplots_adjust(top=0.94, right=0.93)
     plt.title("Average cross-talk probability")
     plt.xlabel("Distance in pixels (-)")

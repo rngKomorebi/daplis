@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from typing import List
 
+import numpy as np
 from numpy import ndarray
 
 from daplis.functions import utils
@@ -208,33 +209,48 @@ def calculate_differences(
 
     pixels_left, pixels_right = utils.pixel_list_transform(pixels)
 
+    seen_pairs = set()
+
     for q in pixels_left:
         for w in pixels_right:
-            if w <= q:
+            if q == w:
                 continue
-            deltas_all[f"{q},{w}"] = []
+            # Canonical order of the pair, so that the column "a,b"
+            # always means t_b - t_a with a < b, no matter in which
+            # order the two lists of pixels were given
+            pix_first, pix_second = (q, w) if q < w else (w, q)
+            if (pix_first, pix_second) in seen_pairs:
+                continue
+            seen_pairs.add((pix_first, pix_second))
+
+            deltas_all[f"{pix_first},{pix_second}"] = []
 
             # Timestamp lag calculation in a shifting window
             window_start_point = 0
-            n2 = len(data[f"{w}"])
-            for t_first_pixel in data[f"{q}"]:
+            n2 = len(data[f"{pix_second}"])
+            for t_first_pixel in data[f"{pix_first}"]:
                 window_limit_left = t_first_pixel - delta_window
                 window_limit_right = t_first_pixel + delta_window
 
                 # Advance window_start_point
                 while (
                     window_start_point < n2
-                    and data[f"{w}"][window_start_point] < window_limit_left
+                    and data[f"{pix_second}"][window_start_point]
+                    < window_limit_left
                 ):
                     window_start_point += 1
 
                 pointer_in_window = window_start_point
                 while (
                     pointer_in_window < n2
-                    and data[f"{w}"][pointer_in_window] <= window_limit_right
+                    and data[f"{pix_second}"][pointer_in_window]
+                    <= window_limit_right
                 ):
-                    dt = data[f"{w}"][pointer_in_window] - t_first_pixel
-                    deltas_all[f"{q},{w}"].append(dt)
+                    dt = (
+                        data[f"{pix_second}"][pointer_in_window]
+                        - t_first_pixel
+                    )
+                    deltas_all[f"{pix_first},{pix_second}"].append(dt)
                     pointer_in_window += 1
 
     return deltas_all
@@ -272,6 +288,17 @@ def calculate_differences_1v1(
     """
 
     deltas_all = {}
+
+    # A flat list of pixel numbers means "all combinations" and cannot
+    # be split into explicit 1-to-1 pairs
+    if all(
+        isinstance(pixel, (int, np.integer)) and not isinstance(pixel, bool)
+        for pixel in pixels
+    ):
+        raise TypeError(
+            "1v1 requires two lists of equal length, "
+            "e.g. [[q0, q1], [w0, w1]]"
+        )
 
     pixels_left, pixels_right = utils.pixel_list_transform(pixels)
 
