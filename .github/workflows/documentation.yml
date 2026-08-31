@@ -7,16 +7,18 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          # setuptools_scm reads the version from the git tags.
+          fetch-depth: 0
       - uses: actions/setup-python@v3
         with:
           python-version: '3.10' 
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install sphinx sphinx_rtd_theme myst-parser sphinx-math-dollar -r requirements.txt
+          pip install -e ".[docs]"
       - name: Sphinx build
         run: |
-          pip install -e .
           sphinx-apidoc -f -e -M -o docs src/daplis/functions/
           sphinx-build docs _build
       - name: Deploy

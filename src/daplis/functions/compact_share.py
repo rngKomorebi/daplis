@@ -256,7 +256,7 @@ def plot_shared(
     motherboard_number: str,
     show_fig: bool = False,
     app_mask: bool = True,
-    color: str = "rebeccapurple",
+    color: str | None = None,
 ):
     """Plots sensor population from a '.txt' file.
 
@@ -314,8 +314,7 @@ def plot_shared(
     else:
         plt.ioff()
 
-    plt.rcParams.update({"font.size": 22})
-    plt.figure(figsize=(16, 10))
+    plt.figure()
     plt.xlabel("Pixel (-)")
     plt.ylabel("Photons (-)")
     plt.plot(data, "o-", color=color)
@@ -337,7 +336,7 @@ def collect_and_plot_timestamp_differences_shared_feather(
     range_right: int = 10e3,
     step: int = 1,
     same_y: bool = False,
-    color: str = "rebeccapurple",
+    color: str | None = None,
 ):
     """Collect and plot timestamp differences from a '.feather' file.
 
@@ -390,8 +389,6 @@ def collect_and_plot_timestamp_differences_shared_feather(
     print(
         "\n> > > Plotting timestamps differences as a grid of histograms < < <"
     )
-
-    plt.rcParams.update({"font.size": 22})
 
     if len(pixels) > 2:
         fig, axs = plt.subplots(

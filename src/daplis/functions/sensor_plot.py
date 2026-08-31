@@ -285,7 +285,7 @@ def plot_single_pix_hist(
             pixels = np.arange(145, 165, 1)
 
         for i, _ in enumerate(pixels):
-            plt.figure(figsize=(16, 10))
+            plt.figure()
             # Define matrix of pixel coordinates, where rows are numbers
             # of TDCs and columns are the pixels that connected to
             # these TDCs
@@ -472,7 +472,7 @@ def plot_sensor_population(
     # Plotting rates
     print("\n> > > Plotting < < <\n")
 
-    fig_rates = plt.figure(figsize=(16, 10))
+    fig_rates = plt.figure()
     fig_rates.subplots_adjust(top=0.94, right=0.93)
     if y_scale == "log":
         plt.yscale("log")
@@ -521,7 +521,7 @@ def plot_sensor_population(
         plt.legend(loc="best")
 
     # Plotting photons
-    fig_photons = plt.figure(figsize=(16, 10))
+    fig_photons = plt.figure()
     fig_photons.subplots_adjust(top=0.94, right=0.93)
     if y_scale == "log":
         plt.yscale("log")
@@ -957,7 +957,7 @@ def plot_sensor_population_full_sensor(
     print("\n> > > Plotting < < <\n")
 
     # Plotting rates
-    fig_rates = plt.figure(figsize=(16, 10))
+    fig_rates = plt.figure()
     fig_rates.subplots_adjust(top=0.94, right=0.93)
     if y_scale == "log":
         plt.yscale("log")
@@ -998,7 +998,7 @@ def plot_sensor_population_full_sensor(
         plt.legend(loc="best")
 
     # Plotting photons
-    fig_photons = plt.figure(figsize=(16, 10))
+    fig_photons = plt.figure()
     fig_photons.subplots_adjust(top=0.94, right=0.93)
     if y_scale == "log":
         plt.yscale("log")

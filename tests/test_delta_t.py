@@ -181,7 +181,7 @@ class TestDeltasFull(unittest.TestCase):
 
     def test_d_fit_with_gaussian_combine_positive(self):
         # Test with valid input
-        pixels = [82, 116]
+        pixels = [[82], [116]]
 
         work_dir = os.path.dirname(os.path.realpath(__file__)) + "/.."
 
@@ -204,7 +204,7 @@ class TestDeltasFull(unittest.TestCase):
 
     def test_d_fit_with_gaussian_combine_pickle_positive(self):
         # Test with valid input
-        pixels = [82, 116]
+        pixels = [[82], [116]]
 
         work_dir = os.path.dirname(os.path.realpath(__file__)) + "/.."
 
